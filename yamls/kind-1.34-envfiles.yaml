@@ -1,0 +1,27 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: k8s-134-envfiles
+nodes:
+- role: control-plane
+  kubeadmConfigPatches:
+  - |
+    kind: ClusterConfiguration
+    apiServer:
+      extraArgs:
+        feature-gates: "EnvFiles=true"
+    controllerManager:
+      extraArgs:
+        feature-gates: "EnvFiles=true"
+    scheduler:
+      extraArgs:
+        feature-gates: "EnvFiles=true"
+  - |
+    kind: KubeletConfiguration
+    featureGates:
+      EnvFiles: true
+- role: worker
+  kubeadmConfigPatches:
+  - |
+    kind: KubeletConfiguration
+    featureGates:
+      EnvFiles: true

@@ -1,0 +1,89 @@
+{
+  "deployments": [
+    {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "etcd-backup-operator",
+        "namespace": "kstone",
+        "labels": {
+          "app": "etcd-backup-operator"
+        }
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "etcd-backup-operator"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "etcd-backup-operator"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "etcd-backup-operator",
+                "image": "ccr.ccs.tencentyun.com/ccs-dev/etcd-operator:v1.0.4",
+                "command": [
+                  "etcd-backup-operator"
+                ],
+                "env": [
+                  {
+                    "name": "MY_POD_NAMESPACE",
+                    "valueFrom": {
+                      "fieldRef": {
+                        "apiVersion": "v1",
+                        "fieldPath": "metadata.namespace"
+                      }
+                    }
+                  },
+                  {
+                    "name": "MY_POD_NAME",
+                    "valueFrom": {
+                      "fieldRef": {
+                        "apiVersion": "v1",
+                        "fieldPath": "metadata.name"
+                      }
+                    }
+                  }
+                ],
+                "resources": {},
+                "imagePullPolicy": "Always"
+              }
+            ]
+            
+          }
+        },
+        "strategy": {}
+      },
+      "status": {}
+    }
+  ],
+  "statefulSets": null,
+  "daemonSets": null,
+  "replicaSets": null,
+  "pods": null,
+  "services": null,
+  "configMaps": null,
+  "secrets": null,
+  "namespaces": null,
+  "serviceAccounts": null,
+  "persistentVolumes": null,
+  "persistentVolumeClaims": null,
+  "resourceQuotas": null,
+  "limitRanges": null,
+  "jobs": null,
+  "cronJobs": null,
+  "ingresses": null,
+  "networkPolicies": null,
+  "roles": null,
+  "roleBindings": null,
+  "clusterRoles": null,
+  "clusterRoleBindings": null,
+  "storageClasses": null,
+  "customResourceDefinitions": null
+}
