@@ -22,12 +22,12 @@ func TestRewriteWithLLM(t *testing.T) {
 			t.Fatalf("failed to get current working dir: %v", err)
 		}
 		// go two levels up from current working dir
-		k8sRoot = filepath.Clean(filepath.Join(cwd, "../.."))
+		k8sRoot = filepath.Clean(filepath.Join(cwd, "../../.."))
 	}
 
 	target := os.Getenv("REWRITE_TARGET")
 	if target == "" {
-		target = "test/e2e" // default
+		target = "test/e2e/common/node/sysctl.go" // default
 	}
 
 	// resolve absolute path
@@ -40,7 +40,7 @@ func TestRewriteWithLLM(t *testing.T) {
 
 	model := os.Getenv("OLLAMA_MODEL")
 	if model == "" {
-		model = "deepseek-coder:33b"
+		model = "gpt-oss:120b-cloud"
 	}
 
 	t.Logf("Rewrite target: %s", absTarget)
@@ -66,7 +66,11 @@ func TestRewriteWithLLM(t *testing.T) {
 		}
 
 		content := string(contentBytes)
-		rewritten, err := CallOllamaWithChunks(file, content, 150)
+		// Build prompt and call Ollama
+		prompt := BuildPrompt(file, content)
+		rewritten, err := CallOllama(prompt)
+		fmt.Println(rewritten)
+		// rewritten, err := CallOllamaWithChunks(file, content, 150)
 		if err != nil {
 			t.Errorf("rewrite failed for %s: %v", file, err)
 			continue

@@ -7,33 +7,53 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"strings"
+	"time"
 )
 
 // OllamaResponse represents the basic structure of Ollama API response
 type OllamaResponse struct {
-	Generated string `json:"generated"`
+	Model       string `json:"model"`
+	RemoteModel string `json:"remote_model"`
+	RemoteHost  string `json:"remote_host"`
+	CreatedAt   string `json:"created_at"`
+	Message     struct {
+		Role    string `json:"role"`
+		Content string `json:"content"`
+	} `json:"message"`
+	Thinking      string `json:"thinking"`
+	Done          bool   `json:"done"`
+	DoneReason    string `json:"done_reason"`
+	TotalDuration int64  `json:"total_duration"`
 }
 
-// CallOllamaChunk sends a single chunk of prompt to Ollama API and returns the rewritten code
-func CallOllamaChunk(prompt string) (string, error) {
+// CallOllama sends the prompt to Ollama API and returns the rewritten code
+func CallOllama(prompt string) (string, error) {
 	model := os.Getenv("OLLAMA_MODEL")
 	if model == "" {
-		model = "deepseek-coder:33b" // default model if env not set
+		model = "gpt-oss:120b-cloud"
 	}
 
 	url := "http://localhost:11434/api/chat"
-	// headers := map[string]string{"Content-Type": "application/json"}
 
 	payload := map[string]interface{}{
 		"model": model,
-
 		"messages": []map[string]string{
-			{"role": "user", "content": prompt},
+			{
+				"role":    "system",
+				"content": "You are an expert Go developer rewriting Kubernetes e2e tests for dynamic configuration. Follow user instructions strictly. Output only Go code or NONE.",
+			},
+			{"role": "user", "content": OneShotUserExample},
+			{"role": "assistant", "content": OneShotAssistantExample},
+			{"role": "user", "content": OneShotUserExample2},
+			{"role": "assistant", "content": OneShotAssistantExample2},
+			{
+				"role":    "user",
+				"content": prompt,
+			},
 		},
 		"options": map[string]interface{}{
 			"temperature": 0.0,
-			"num_ctx":     4096,
+			"num_ctx":     131072,
 		},
 		"stream": false,
 	}
@@ -42,14 +62,31 @@ func CallOllamaChunk(prompt string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal payload: %w", err)
 	}
+	client := &http.Client{
+		Timeout: 5 * time.Minute,
+	}
 
-	resp, err := http.Post(url, "application/json", bytes.NewReader(bodyBytes))
+	resp, err := client.Post(url, "application/json", bytes.NewBuffer(bodyBytes))
+
+	// resp, err := http.Post(url, "application/json", bytes.NewReader(bodyBytes))
 	if err != nil {
 		return "", fmt.Errorf("failed to call Ollama API: %w", err)
 	}
 	defer resp.Body.Close()
 
+	// ✅ Handle non-200 HTTP codes
+	if resp.StatusCode != http.StatusOK {
+		errBody, _ := ioutil.ReadAll(resp.Body)
+		return "", fmt.Errorf(
+			"ollama returned HTTP %d: %s",
+			resp.StatusCode,
+			string(errBody),
+		)
+	}
+
 	respBytes, err := ioutil.ReadAll(resp.Body)
+	// fmt.Println("Ollama response:")
+	// fmt.Println(string(respBytes))
 	if err != nil {
 		return "", fmt.Errorf("failed to read Ollama response: %w", err)
 	}
@@ -59,39 +96,12 @@ func CallOllamaChunk(prompt string) (string, error) {
 		return "", fmt.Errorf("failed to parse Ollama response: %w", err)
 	}
 
-	return ollamaResp.Generated, nil
-}
-
-// CallOllamaWithChunks splits the file content into chunks and calls Ollama for each
-func CallOllamaWithChunks(filePath, content string, maxLines int) (string, error) {
-	lines := strings.Split(content, "\n")
-	var outputSlices []string
-
-	for i := 0; i < len(lines); i += maxLines {
-		end := i + maxLines
-		if end > len(lines) {
-			end = len(lines)
-		}
-
-		chunk := strings.Join(lines[i:end], "\n")
-		prompt := BuildPrompt(filePath, chunk) // your BuildPrompt function
-
-		fmt.Printf("🔹 Processing lines %d-%d for file %s\n", i+1, end, filePath)
-
-		out, err := CallOllamaChunk(prompt)
-		if err != nil {
-			return "", fmt.Errorf("chunk [%d-%d] failed: %w", i+1, end, err)
-		}
-
-		outTrim := strings.TrimSpace(out)
-		if strings.EqualFold(outTrim, "NONE") || outTrim == "" {
-			// LLM indicates no test needs rewrite
-			return "NONE", nil
-		}
-
-		outputSlices = append(outputSlices, out)
+	outTrim := ollamaResp.Message.Content
+	fmt.Println("Ollama output:")
+	fmt.Println(outTrim)
+	if outTrim == "" || outTrim == "NONE" {
+		return "NONE", nil
 	}
 
-	finalOutput := strings.Join(outputSlices, "\n")
-	return finalOutput, nil
+	return outTrim, nil
 }

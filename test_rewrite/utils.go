@@ -39,9 +39,21 @@ func BuildPrompt(path, content string) string {
 
 	// Prompt template
 	prompt := fmt.Sprintf(`
-You are a Go developer rewriting Kubernetes e2e tests for dynamic configuration using ctest.
+You are a Go developer rewriting Kubernetes tests for dynamic configuration.
 
+The goal of rewriting is to remove hard-coded Kubernetes configuration values from tests and replace them with dynamically generated configuration, while preserving the original intent and semantics of the test.
 
+Kubernetes tests often validate behavior under specific configuration assumptions (for example, restartPolicy: Never). Not all configuration fields are exercised in a single test. We want to evaluate whether the test still succeeds when configuration is dynamically:
+1) Extended with additional fields,
+2) Overridden with different values,
+3) Or both extended and overridden.
+
+However, rewritten tests MUST NOT break the original test logic or change what the test is intended to verify.
+
+Before rewriting, you must carefully analyze the original test code and understand:
+- What behavior the test is validating
+- Which configuration fields are essential to the test's correctness
+- Which fields are merely incidental and safe to vary
 
 Instructions:
 
@@ -106,6 +118,7 @@ Instructions:
        "resourcequotas","limitranges","jobs","cronjob","ingressws","networkpolicys",
        "roles","rolebindings","clusterroles","clusterrolebindings","storageclasses","customresourcedefinitions"
      }
+   - Select all relevant objects that could contain the hardcoded field. For example, if the hardcoded field is in Spec, include "pods", "deployments", "statefulsets", "daemonsets", "replicasets"...
 
 4. **Rewriting Tests**:
    - Preserve all dynamic fields and metadata.
@@ -151,7 +164,7 @@ Instructions:
    - Do not include any explanations or comments outside the code.
    - If this file has no tests that need rewriting, return the string "NONE" exactly.
 
-Generate the rewritten Go test file based on the above instructions.
+Below is original go code content, generate the rewritten Go test code based on the above instructions and below original code. 
 ---
 Input file: %s
 
