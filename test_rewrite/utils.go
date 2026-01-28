@@ -60,13 +60,14 @@ Instructions:
 1. **Package and imports**:
    - Keep the original package.
    - Keep needed imports.
-   - Add imports if missing:
+   - Add imports as need if missing:
      import (
          "fmt"
          ctest "k8s.io/kubernetes/test/ctest"
          ctestglobals "k8s.io/kubernetes/test/ctest/ctestglobals"
          ctestutils "k8s.io/kubernetes/test/ctest/utils"
      )
+   - Import "k8s.io/apimachinery/pkg/util/uuid" if using uuid.NewUUID().
 
 2. **Hardcoded Config Function**:
    - For each hardcoded config in a test, generate:
@@ -86,9 +87,9 @@ Instructions:
      - Populate:
        - FixtureFileName: "test_fixture.json"
        - TestInfo: unique test description string
-       - Field: field name mapping to hardcoded values
+       - Field: field name mapping to hardcoded values. MUST macth exactly K8s object field name, e.g., "restartPolicy", "securityContext", "livenessProbe".
        - K8sObjects: choose all relevant objects from "FixtureIncludeObjects"
-       - HardcodedConfig: exact hardcoded values from original test (only the part necessary for the test)
+       - HardcodedConfig: exact hardcoded values from original test (only the part necessary for the test). Do NOT include variables.
 	 - Example structure for container_probe.go:
      func getHardCodedConfigInfoContainerProbe() ctestglobals.HardcodedConfig {
          return ctestglobals.HardcodedConfig{
@@ -118,7 +119,7 @@ Instructions:
        "resourcequotas","limitranges","jobs","cronjob","ingressws","networkpolicys",
        "roles","rolebindings","clusterroles","clusterrolebindings","storageclasses","customresourcedefinitions"
      }
-   - Select all relevant objects that could contain the hardcoded field. For example, if the hardcoded field is in Spec, include "pods", "deployments", "statefulsets", "daemonsets", "replicasets"...
+   - Select ALL relevant objects that could contain the hardcoded field. *For example, if the hardcoded field is in spec, you should select all relevant objects include "pods", "deployments", "statefulsets", "daemonsets", "replicasets", instead of just "pods".*
 
 4. **Rewriting Tests**:
    - Preserve all dynamic fields and metadata.
@@ -145,24 +146,36 @@ Instructions:
    - Use fmt.Println(ctestglobals.DebugPrefix(), "message") for logging.
    - Always log:
      - Start of test
-     - Matched config
-     - JSON of new test config
-     - Number of test cases
+     - Matched config, for example: fmt.Println(ctestglobals.DebugPrefix(), "get default configs:", item)
+     - JSON of new test configs, for example: fmt.Println(ctestglobals.DebugPrefix(), "New Json Test Configs:", string(configJson))
+     - Number of test cases, for example: fmt.Println(ctestglobals.DebugPrefix(), "Number of test cases:", len(configObjs))
+     - For each test case, log the index and the config used. For example: fmt.Sprintf("Running # th test cases.\n", i)
+				fmt.Println(configObj)
+     - Skipped tests due to missing config, for example: fmt.Println(ctestglobals.DebugPrefix(), "Skipping test execution. No new configurations generated. "). Note, use if-else to check if configObjs is nil or empty. If configObjs == nil, skip the test execution, and simply log the skip message and continue run tests, do not use framework.Failf break test execution.
    - Handle errors using framework.Failf if config not found.
 
-7. **Preserve Original Functions**:
-   - Keep all other helper functions in the original file.
-   - Only add new test functions and getHardCodedConfigInfo functions.
+7. **Preserve Original Functions**: 
+    - Keep all other helper functions in the original file. 
+    - Only add new test functions, new helper functions, and getHardCodedConfigInfo<FileName> functions in the new file.
+    - Each new helper function MUST has a unique name (for example, append <FileName>).
 
 8. **Multiple Tests per File**:
-   - Repeat process for each test case.
-   - Each test must have unique TestInfo.
+   - For each test function provided, such as: framework.ConformanceIt, ginkgo.It, f.It, framework.It, ginkgo.Describe, framework.Describe, f.Describe, etc. do:
+    - Repeat process for each test function.
+    - If you think a test function cannot be rewritten, do not include it.
+    - Only return successfully rewritten tests.
+    - Each test must have unique TestInfo in func getHardCodedConfigInfo<FileName>() ctestglobals.HardcodedConfig
+    - Do NOT omit any part of the code for brevity within a rewritten test.
+   - For all successfully rewritten tests in a file:
+    - Collect all hardcoded configurations into one function: func getHardCodedConfigInfo<FileName>() ctestglobals.HardcodedConfig
+    - Each entry in the returned HardcodedConfig slice corresponds to one test and contains its unique TestInfo.
 
 9. **Output**:
-   - If this file has tests that need rewriting, return the code exactly.
-   - Ensure the file compiles and runs.
-   - Do not include any explanations or comments outside the code.
+   - If this file has tests that need rewriting, RETURN THE FINAL CODE EXACTLY.
+   - Ensure the file compiles and runs, and remove all decleared but unused var and imports.
+   - Do NOT include any explanations or comments outside the code.
    - If this file has no tests that need rewriting, return the string "NONE" exactly.
+   
 
 Below is original go code content, generate the rewritten Go test code based on the above instructions and below original code. 
 ---
@@ -176,3 +189,12 @@ File content:
 
 	return prompt
 }
+
+// 7. **Helper Function Reuse and Modification**:
+// The generated new file MUST NOT contain any helper function whose implementation is identical to one in the original file.
+// If a helper function is unchanged, the rewritten test MUST call the original function by name and MUST NOT redefine it.
+// Only include a helper function in the new file when its logic is changed to support dynamic configuration.
+// Any modified helper function MUST:
+//   - Have a unique name (for example, append Rewritten)
+//   - Be used by the rewritten test
+// If a helper function is unchanged, it is an error to include it in the new file.

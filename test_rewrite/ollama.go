@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	ctestglobals "k8s.io/kubernetes/test/ctest/ctestglobals"
 	"net/http"
 	"os"
 	"time"
@@ -30,7 +31,7 @@ type OllamaResponse struct {
 func CallOllama(prompt string) (string, error) {
 	model := os.Getenv("OLLAMA_MODEL")
 	if model == "" {
-		model = "gpt-oss:120b-cloud"
+		model = ctestglobals.OllamaModelDefault
 	}
 
 	url := "http://localhost:11434/api/chat"
@@ -97,8 +98,8 @@ func CallOllama(prompt string) (string, error) {
 	}
 
 	outTrim := ollamaResp.Message.Content
-	fmt.Println("Ollama output:")
-	fmt.Println(outTrim)
+	// fmt.Println("Ollama output:")
+	// fmt.Println(outTrim)
 	if outTrim == "" || outTrim == "NONE" {
 		return "NONE", nil
 	}

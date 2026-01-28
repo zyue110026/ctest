@@ -42,6 +42,7 @@ type HardcodedConfigItem struct {
 }
 
 var (
+	OllamaModelDefault         = "gpt-oss:120b-cloud"
 	StartSeparator             = "\n==================== CTEST START ===================="
 	EndSeparator               = "\n==================== CTEST END ======================"
 	StartExtendModeSeparator   = "\n==================== CTEST EXTEND ONLY START ===================="

@@ -24,11 +24,30 @@ func CollectGoFiles(path string) ([]string, error) {
 		return nil, fmt.Errorf("file does not exist: %s", path)
 	}
 
+	// Directory → walk normally
 	if info.IsDir() {
 		return walkDir(path)
 	}
 
+	// Single Go file → apply all skip rules
 	if strings.HasSuffix(path, ".go") {
+		base := filepath.Base(path)
+
+		// Skip specific filenames
+		if skipFiles[base] {
+			return []string{}, nil
+		}
+
+		// Skip rewritten files
+		if strings.HasPrefix(base, "ctest_") {
+			return []string{}, nil
+		}
+
+		// Skip files inside ctest directory
+		if strings.Contains(path, string(filepath.Separator)+"ctest"+string(filepath.Separator)) {
+			return []string{}, nil
+		}
+
 		return []string{path}, nil
 	}
 
@@ -53,9 +72,11 @@ func walkDir(root string) ([]string, error) {
 		if !strings.HasSuffix(d.Name(), ".go") {
 			return nil
 		}
-
+		// fmt.Println(d.Name())
 		// Skip framework/utils and already rewritten files
-		if skipFiles[d.Name()] || strings.HasPrefix(d.Name(), "ctest_") {
+		if skipFiles[d.Name()] ||
+			strings.HasPrefix(d.Name(), "ctest_") ||
+			strings.Contains(d.Name(), "ctest_") {
 			return nil
 		}
 
