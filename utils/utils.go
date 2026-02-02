@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -85,4 +86,46 @@ func GetItemsByTestInfo(configs ctestglobals.HardcodedConfig, testInfo string) [
 		}
 	}
 	return matches
+}
+
+var skipDirs = map[string]bool{
+	"framework": true,
+	"utils":     true,
+	"ctest":     true,
+}
+
+var skipFiles = map[string]bool{
+	"framework.go": true,
+	"utils.go":     true,
+}
+
+// Collect all Go files recursively, skipping certain dirs/files
+func CollectAllGoFiles(root string) ([]string, error) {
+	var files []string
+
+	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if d.IsDir() {
+			if skipDirs[d.Name()] {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		if !strings.HasSuffix(d.Name(), ".go") {
+			return nil
+		}
+
+		if skipFiles[d.Name()] {
+			return nil
+		}
+
+		files = append(files, path)
+		return nil
+	})
+
+	return files, err
 }

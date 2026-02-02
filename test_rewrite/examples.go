@@ -527,3 +527,236 @@ func getConfigMapFromFixtureOverrideMode(testinfo string) ([]map[string]string, 
 }
 
 `
+
+var OneShotUserExample3 = `
+ORIGINAL GO Test Function:
+func TestAdoption(t *testing.T) {
+	testCases := []struct {
+		name                    string
+		existingOwnerReferences func(rs *apps.ReplicaSet) []metav1.OwnerReference
+		expectedOwnerReferences func(rs *apps.ReplicaSet) []metav1.OwnerReference
+	}{
+		{
+			"pod refers rs as an owner, not a controller",
+			func(rs *apps.ReplicaSet) []metav1.OwnerReference {
+				return []metav1.OwnerReference{{UID: rs.UID, Name: rs.Name, APIVersion: "apps/v1", Kind: "ReplicaSet"}}
+			},
+			func(rs *apps.ReplicaSet) []metav1.OwnerReference {
+				return []metav1.OwnerReference{{UID: rs.UID, Name: rs.Name, APIVersion: "apps/v1", Kind: "ReplicaSet", Controller: ptr.To(true), BlockOwnerDeletion: ptr.To(true)}}
+			},
+		},
+		{
+			"pod doesn't have owner references",
+			func(rs *apps.ReplicaSet) []metav1.OwnerReference {
+				return []metav1.OwnerReference{}
+			},
+			func(rs *apps.ReplicaSet) []metav1.OwnerReference {
+				return []metav1.OwnerReference{{UID: rs.UID, Name: rs.Name, APIVersion: "apps/v1", Kind: "ReplicaSet", Controller: ptr.To(true), BlockOwnerDeletion: ptr.To(true)}}
+			},
+		},
+		{
+			"pod refers rs as a controller",
+			func(rs *apps.ReplicaSet) []metav1.OwnerReference {
+				return []metav1.OwnerReference{{UID: rs.UID, Name: rs.Name, APIVersion: "apps/v1", Kind: "ReplicaSet", Controller: ptr.To(true)}}
+			},
+			func(rs *apps.ReplicaSet) []metav1.OwnerReference {
+				return []metav1.OwnerReference{{UID: rs.UID, Name: rs.Name, APIVersion: "apps/v1", Kind: "ReplicaSet", Controller: ptr.To(true)}}
+			},
+		},
+		{
+			"pod refers other rs as the controller, refers the rs as an owner",
+			func(rs *apps.ReplicaSet) []metav1.OwnerReference {
+				return []metav1.OwnerReference{
+					{UID: "1", Name: "anotherRS", APIVersion: "apps/v1", Kind: "ReplicaSet", Controller: ptr.To(true)},
+					{UID: rs.UID, Name: rs.Name, APIVersion: "apps/v1", Kind: "ReplicaSet"},
+				}
+			},
+			func(rs *apps.ReplicaSet) []metav1.OwnerReference {
+				return []metav1.OwnerReference{
+					{UID: "1", Name: "anotherRS", APIVersion: "apps/v1", Kind: "ReplicaSet", Controller: ptr.To(true)},
+					{UID: rs.UID, Name: rs.Name, APIVersion: "apps/v1", Kind: "ReplicaSet"},
+				}
+			},
+		},
+	}
+	for i, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tCtx, closeFn, rm, informers, clientSet := rmSetup(t)
+			defer closeFn()
+
+			ns := framework.CreateNamespaceOrDie(clientSet, fmt.Sprintf("rs-adoption-%d", i), t)
+			defer framework.DeleteNamespaceOrDie(clientSet, ns, t)
+
+			rsClient := clientSet.AppsV1().ReplicaSets(ns.Name)
+			podClient := clientSet.CoreV1().Pods(ns.Name)
+			const rsName = "rs"
+			rs, err := rsClient.Create(tCtx, newRS(rsName, ns.Name, 1), metav1.CreateOptions{})
+			if err != nil {
+				t.Fatalf("Failed to create replica set: %v", err)
+			}
+			podName := fmt.Sprintf("pod%d", i)
+			pod := newMatchingPod(podName, ns.Name)
+			pod.OwnerReferences = tc.existingOwnerReferences(rs)
+			_, err = podClient.Create(tCtx, pod, metav1.CreateOptions{})
+			if err != nil {
+				t.Fatalf("Failed to create Pod: %v", err)
+			}
+
+			stopControllers := runControllerAndInformers(t, rm, informers, 1)
+			defer stopControllers()
+			if err := wait.PollImmediate(interval, timeout, func() (bool, error) {
+				updatedPod, err := podClient.Get(tCtx, pod.Name, metav1.GetOptions{})
+				if err != nil {
+					return false, err
+				}
+
+				e, a := tc.expectedOwnerReferences(rs), updatedPod.OwnerReferences
+				if reflect.DeepEqual(e, a) {
+					return true, nil
+				}
+
+				t.Logf("ownerReferences don't match, expect %v, got %v", e, a)
+				return false, nil
+			}); err != nil {
+				t.Fatalf("test %q failed: %v", tc.name, err)
+			}
+		})
+	}
+}
+`
+var OneShotAssistantExample3 = `
+REWRITTEN GO Test FUNCTION:
+// Rewritten TestAdoption with edge/invalid test cases
+func TestCtestAdoptionEdgeCases(t *testing.T) {
+	
+	edgeTestCases := []struct {
+		name                    string
+		existingOwnerReferences func(rs *apps.ReplicaSet) []metav1.OwnerReference
+		expectedOwnerReferences func(rs *apps.ReplicaSet) []metav1.OwnerReference
+	}{
+		{
+			name: "pod has multiple controller owners",
+			existingOwnerReferences: func(rs *apps.ReplicaSet) []metav1.OwnerReference {
+				return []metav1.OwnerReference{
+					{UID: "1", Name: "rs1", APIVersion: "apps/v1", Kind: "ReplicaSet", Controller: ptr.To(true)},
+					{UID: "2", Name: "rs2", APIVersion: "apps/v1", Kind: "ReplicaSet", Controller: ptr.To(true)},
+				}
+			},
+			expectedOwnerReferences: func(rs *apps.ReplicaSet) []metav1.OwnerReference {
+				// No adoption should happen since pod already has a controller
+				return []metav1.OwnerReference{
+					{UID: "1", Name: "rs1", APIVersion: "apps/v1", Kind: "ReplicaSet", Controller: ptr.To(true)},
+					{UID: "2", Name: "rs2", APIVersion: "apps/v1", Kind: "ReplicaSet", Controller: ptr.To(true)},
+				}
+			},
+		},
+		{
+			name: "pod has owner reference with invalid UID",
+			existingOwnerReferences: func(rs *apps.ReplicaSet) []metav1.OwnerReference {
+				return []metav1.OwnerReference{
+					{UID: "", Name: rs.Name, APIVersion: "apps/v1", Kind: "ReplicaSet"},
+				}
+			},
+			expectedOwnerReferences: func(rs *apps.ReplicaSet) []metav1.OwnerReference {
+				// Pod should not adopt due to invalid UID
+				return []metav1.OwnerReference{
+					{UID: "", Name: rs.Name, APIVersion: "apps/v1", Kind: "ReplicaSet"},
+				}
+			},
+		},
+		{
+			name: "pod has owner reference with unknown kind",
+			existingOwnerReferences: func(rs *apps.ReplicaSet) []metav1.OwnerReference {
+				return []metav1.OwnerReference{
+					{UID: rs.UID, Name: rs.Name, APIVersion: "apps/v1", Kind: "UnknownKind"},
+				}
+			},
+			expectedOwnerReferences: func(rs *apps.ReplicaSet) []metav1.OwnerReference {
+				// Should not adopt since kind is not ReplicaSet
+				return []metav1.OwnerReference{
+					{UID: rs.UID, Name: rs.Name, APIVersion: "apps/v1", Kind: "UnknownKind"},
+				}
+			},
+		},
+		{
+			name: "pod has owner reference with invalid APIVersion",
+			existingOwnerReferences: func(rs *apps.ReplicaSet) []metav1.OwnerReference {
+				return []metav1.OwnerReference{
+					{UID: rs.UID, Name: rs.Name, APIVersion: "invalid/v1", Kind: "ReplicaSet"},
+				}
+			},
+			expectedOwnerReferences: func(rs *apps.ReplicaSet) []metav1.OwnerReference {
+				// Adoption should fail due to wrong APIVersion
+				return []metav1.OwnerReference{
+					{UID: rs.UID, Name: rs.Name, APIVersion: "invalid/v1", Kind: "ReplicaSet"},
+				}
+			},
+		},
+		{
+			name: "pod has multiple owners including invalid and correct controller",
+			existingOwnerReferences: func(rs *apps.ReplicaSet) []metav1.OwnerReference {
+				return []metav1.OwnerReference{
+					{UID: "random", Name: "otherRS", APIVersion: "apps/v1", Kind: "ReplicaSet", Controller: ptr.To(true)},
+					{UID: "", Name: rs.Name, APIVersion: "apps/v1", Kind: "ReplicaSet"},
+				}
+			},
+			expectedOwnerReferences: func(rs *apps.ReplicaSet) []metav1.OwnerReference {
+				// Should not adopt due to existing controller present
+				return []metav1.OwnerReference{
+					{UID: "random", Name: "otherRS", APIVersion: "apps/v1", Kind: "ReplicaSet", Controller: ptr.To(true)},
+					{UID: "", Name: rs.Name, APIVersion: "apps/v1", Kind: "ReplicaSet"},
+				}
+			},
+		},
+	}
+	fmt.Println(ctestglobals.DebugPrefix(), "Add edge test cases:", edgeTestCases)
+	fmt.Println(ctestglobals.DebugPrefix(), "Number of test cases:", len(edgeTestCases))
+	for i, tc := range edgeTestCases {
+		fmt.Printf("Running %d th test cases.\n", i)
+		fmt.Println(tc)
+		t.Run(tc.name, func(t *testing.T) {
+			tCtx, closeFn, rm, informers, clientSet := rmSetup(t)
+			defer closeFn()
+
+			ns := framework.CreateNamespaceOrDie(clientSet, fmt.Sprintf("rs-adoption-edge-%d", i), t)
+			defer framework.DeleteNamespaceOrDie(clientSet, ns, t)
+
+			rsClient := clientSet.AppsV1().ReplicaSets(ns.Name)
+			podClient := clientSet.CoreV1().Pods(ns.Name)
+			rsName := fmt.Sprintf("rs-%s", string(uuid.NewUUID()))
+			rs, err := rsClient.Create(tCtx, newRS(rsName, ns.Name, 1), metav1.CreateOptions{})
+			if err != nil {
+				t.Fatalf("Failed to create replica set: %v", err)
+			}
+
+			podName := fmt.Sprintf("pod-edge-%d", i)
+			pod := newMatchingPod(podName, ns.Name)
+			pod.OwnerReferences = tc.existingOwnerReferences(rs)
+			_, err = podClient.Create(tCtx, pod, metav1.CreateOptions{})
+			if err != nil {
+				t.Fatalf("Failed to create Pod: %v", err)
+			}
+
+			stopControllers := runControllerAndInformers(t, rm, informers, 1)
+			defer stopControllers()
+
+			if err := wait.PollImmediate(interval, timeout, func() (bool, error) {
+				updatedPod, err := podClient.Get(tCtx, pod.Name, metav1.GetOptions{})
+				if err != nil {
+					return false, err
+				}
+
+				e, a := tc.expectedOwnerReferences(rs), updatedPod.OwnerReferences
+				if reflect.DeepEqual(e, a) {
+					return true, nil
+				}
+
+				t.Logf("ownerReferences don't match, expect %v, got %v", e, a)
+				return false, nil
+			}); err != nil {
+				t.Fatalf("edge test %q failed: %v", tc.name, err)
+			}
+		})
+	}
+}
+`

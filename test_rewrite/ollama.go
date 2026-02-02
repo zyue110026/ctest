@@ -47,6 +47,8 @@ func CallOllama(prompt string) (string, error) {
 			{"role": "assistant", "content": OneShotAssistantExample},
 			{"role": "user", "content": OneShotUserExample2},
 			{"role": "assistant", "content": OneShotAssistantExample2},
+			{"role": "user", "content": OneShotUserExample3},
+			{"role": "assistant", "content": OneShotAssistantExample3},
 			{
 				"role":    "user",
 				"content": prompt,

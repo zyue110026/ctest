@@ -1,4 +1,4 @@
-package testrewrite
+package clean
 
 import (
 	"fmt"
@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	ctestutils "k8s.io/kubernetes/test/ctest/utils"
 )
 
 // TestCleanRewrites rolls back all rewritten files to original state
@@ -38,7 +40,7 @@ func TestCleanRewrites(t *testing.T) {
 	// 	t.Fatalf("failed to resolve absolute path: %v", err)
 	// }
 
-	files, err := collectAllGoFiles(absTarget)
+	files, err := ctestutils.CollectAllGoFiles(absTarget)
 	if err != nil {
 		t.Fatalf("failed to collect Go files: %v", err)
 	}
@@ -90,33 +92,33 @@ func TestCleanRewrites(t *testing.T) {
 	t.Log("===================================")
 }
 
-// Collect all Go files recursively, skipping certain dirs/files
-func collectAllGoFiles(root string) ([]string, error) {
-	var files []string
+func hasOriginalBuildTag(path string) (bool, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false, err
+	}
 
-	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
+	content := string(data)
+
+	return strings.HasPrefix(content, "//go:build original") ||
+		strings.HasPrefix(content, "// +build original"), nil
+}
+
+func removeOriginalBuildTag(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	content := string(data)
+	lines := strings.Split(content, "\n")
+	var newLines []string
+	for _, line := range lines {
+		if strings.HasPrefix(line, "//go:build original") || strings.HasPrefix(line, "// +build original") {
+			continue
 		}
+		newLines = append(newLines, line)
+	}
 
-		if d.IsDir() {
-			if skipDirs[d.Name()] {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		if !strings.HasSuffix(d.Name(), ".go") {
-			return nil
-		}
-
-		if skipFiles[d.Name()] {
-			return nil
-		}
-
-		files = append(files, path)
-		return nil
-	})
-
-	return files, err
+	return os.WriteFile(path, []byte(strings.Join(newLines, "\n")), 0644)
 }

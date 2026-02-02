@@ -48,6 +48,8 @@ Kubernetes tests often validate behavior under specific configuration assumption
 2) Overridden with different values,
 3) Or both extended and overridden.
 
+Kubernetes tests typically define testcases = [] to cover common scenarios, but they may not include edge cases or invalid values. In these situations, we should add test cases with edge conditions and invalid values to ensure the test behavior is still correct and to identify potential gaps in validation logic.
+
 However, rewritten tests MUST NOT break the original test logic or change what the test is intended to verify.
 
 Before rewriting, you must carefully analyze the original test code and understand:
@@ -142,7 +144,16 @@ Instructions:
      - Union: ctest.Union, use ctestglobals.StartUnionModeSeparator
    - Print the separator before starting the rewritten test.
 
-6. **Logging and Debug**:
+6. **Handling Test Cases**:
+   - If the original test has testcases = []:
+      - Add edge cases and invalid values (empty strings, nil pointers, zero, negative, extremely large values)
+      - Preserve original test semantics
+   - If both hardcoded values and testcases exist, do both:
+      - Generate dynamic configurations for hardcoded values using merge modes
+      - Expand testcases array to include edge and invalid values
+      - Run the test by combining all dynamic configs with all testcases
+
+7. **Logging and Debug**:
    - Use fmt.Println(ctestglobals.DebugPrefix(), "message") for logging.
    - Always log:
      - Start of test
@@ -152,25 +163,28 @@ Instructions:
      - For each test case, log the index and the config used. For example: fmt.Sprintf("Running # th test cases.\n", i)
 				fmt.Println(configObj)
      - Skipped tests due to missing config, for example: fmt.Println(ctestglobals.DebugPrefix(), "Skipping test execution. No new configurations generated. "). Note, use if-else to check if configObjs is nil or empty. If configObjs == nil, skip the test execution, and simply log the skip message and continue run tests, do not use framework.Failf break test execution.
-   - Handle errors using framework.Failf if config not found.
+   - Handle errors using framework.Failf for ginkgo test, using t.Failf for go test function.
 
-7. **Preserve Original Functions**: 
-    - Keep all other helper functions in the original file. 
+8. **Unchanged functions should never appear in the new file**: 
     - Only add new test functions, new helper functions, and getHardCodedConfigInfo<FileName> functions in the new file.
     - Each new helper function MUST has a unique name (for example, append <FileName>).
+    - Only include functions that are new or modified for dynamic configuration and edge-case testing. Do not copy unchanged helpers or tests.
 
-8. **Multiple Tests per File**:
-   - For each test function provided, such as: framework.ConformanceIt, ginkgo.It, f.It, framework.It, ginkgo.Describe, framework.Describe, f.Describe, etc. do:
+9. **Multiple Tests per File**:
+   - For each test function provided, such as: framework.ConformanceIt, ginkgo.It, f.It, framework.It, ginkgo.Describe, framework.Describe, f.Describe, func TestXYZ etc. do:
     - Repeat process for each test function.
     - If you think a test function cannot be rewritten, do not include it.
     - Only return successfully rewritten tests.
     - Each test must have unique TestInfo in func getHardCodedConfigInfo<FileName>() ctestglobals.HardcodedConfig
     - Do NOT omit any part of the code for brevity within a rewritten test.
+    - *If you are rewriting a go test function (func TestXYZ(t *testing.T)):
+      - Make sure to rename it to append Ctest bewteen Test and original name, e.g., func TestCtestXYZ(t *testing.T), to avoid name conflicts with the original test function.*
+      - Add some test cases for edge cases and log debug info, for example, empty values, max values, min values, etc., invalide value, if applicable.*
    - For all successfully rewritten tests in a file:
     - Collect all hardcoded configurations into one function: func getHardCodedConfigInfo<FileName>() ctestglobals.HardcodedConfig
     - Each entry in the returned HardcodedConfig slice corresponds to one test and contains its unique TestInfo.
 
-9. **Output**:
+10. **Output**:
    - If this file has tests that need rewriting, RETURN THE FINAL CODE EXACTLY.
    - Ensure the file compiles and runs, and remove all decleared but unused var and imports.
    - Do NOT include any explanations or comments outside the code.

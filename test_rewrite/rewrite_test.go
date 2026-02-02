@@ -30,7 +30,7 @@ func TestRewriteWithLLM(t *testing.T) {
 
 	target := os.Getenv("REWRITE_TARGET")
 	if target == "" {
-		target = "test/e2e/"
+		target = "test/integration/"
 	}
 
 	var absTarget string
@@ -149,12 +149,12 @@ func TestRewriteWithLLM(t *testing.T) {
 			continue
 		}
 
-		// Add build tag to original file
-		if err := addOriginalBuildTag(file); err != nil {
-			t.Errorf("failed to tag original file %s: %v", file, err)
-			failed++
-			continue
-		}
+		// // Add build tag to original file
+		// if err := addOriginalBuildTag(file); err != nil {
+		// 	t.Errorf("failed to tag original file %s: %v", file, err)
+		// 	failed++
+		// 	continue
+		// }
 
 		t.Logf("✅ Saved %s", newFile)
 		rewritten++
