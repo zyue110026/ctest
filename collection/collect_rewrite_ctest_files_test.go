@@ -20,9 +20,9 @@ func TestCollectCtestFiles(t *testing.T) {
 		k8sRoot = filepath.Clean(filepath.Join(cwd, "../../.."))
 	}
 
-	target := os.Getenv("CLEAN_TARGET")
+	target := os.Getenv("COLLECT_TARGET")
 	if target == "" {
-		target = "test/e2e"
+		target = "test/integration" // default folder
 	}
 
 	var absTarget string

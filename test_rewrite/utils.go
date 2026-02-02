@@ -89,7 +89,7 @@ Instructions:
      - Populate:
        - FixtureFileName: "test_fixture.json"
        - TestInfo: unique test description string
-       - Field: field name mapping to hardcoded values. MUST macth exactly K8s object field name, e.g., "restartPolicy", "securityContext", "livenessProbe".
+       - Field: field name mapping to hardcoded values. *MUST macth exactly K8s object field name, e.g., "restartPolicy", "securityContext", "livenessProbe".*
        - K8sObjects: choose all relevant objects from "FixtureIncludeObjects"
        - HardcodedConfig: exact hardcoded values from original test (only the part necessary for the test). Do NOT include variables.
 	 - Example structure for container_probe.go:
@@ -148,7 +148,7 @@ Instructions:
    - If the original test has testcases = []:
       - Add edge cases and invalid values (empty strings, nil pointers, zero, negative, extremely large values)
       - Preserve original test semantics
-   - If both hardcoded values and testcases exist, do both:
+   - If testcases exist and hardcpded cpmfiguration not related to k8s configuration field, only do add edge cases. If both hardcoded values and testcases exist, do both:
       - Generate dynamic configurations for hardcoded values using merge modes
       - Expand testcases array to include edge and invalid values
       - Run the test by combining all dynamic configs with all testcases
