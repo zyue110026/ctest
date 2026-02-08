@@ -695,8 +695,8 @@ func overrideOnly(baseJSON []byte, externalFieldValues []stdjson.RawMessage, mod
 	}
 
 	// Pretty print base for debugging
-	prettyBase, _ := stdjson.MarshalIndent(baseData, "", "  ")
-	log.Printf(ctestglobals.DebugPrefix(), "BASE DATA (type: %T):\n%s", baseData, prettyBase)
+	// prettyBase, _ := stdjson.MarshalIndent(baseData, "", "  ")
+	// log.Printf(ctestglobals.DebugPrefix(), "BASE DATA (type: %T):\n%s", baseData, prettyBase)
 
 	results := make([][]byte, 0, len(externalFieldValues))
 
@@ -710,9 +710,9 @@ func overrideOnly(baseJSON []byte, externalFieldValues []stdjson.RawMessage, mod
 			return nil, fmt.Errorf("external %d: %w", i, err)
 		}
 
-		// Pretty print external for debugging
-		prettyExt, _ := stdjson.MarshalIndent(externalData, "", "  ")
-		log.Printf(ctestglobals.DebugPrefix(), "EXTERNAL %d (type: %T):\n%s", i+1, externalData, prettyExt)
+		// // Pretty print external for debugging
+		// prettyExt, _ := stdjson.MarshalIndent(externalData, "", "  ")
+		// log.Printf(ctestglobals.DebugPrefix(), "EXTERNAL %d (type: %T):\n%s", i+1, externalData, prettyExt)
 
 		// Perform override-only merge based on mode
 		var resultData interface{}
