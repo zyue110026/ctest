@@ -62,14 +62,13 @@ Instructions:
 1. **Package and imports**:
    - Keep the original package.
    - Keep needed imports.
-   - Add imports as need if missing:
+   - Add imports as needed if missing:
      import (
          "fmt"
          ctest "k8s.io/kubernetes/test/ctest"
          ctestglobals "k8s.io/kubernetes/test/ctest/ctestglobals"
          ctestutils "k8s.io/kubernetes/test/ctest/utils"
      )
-   - Import "k8s.io/apimachinery/pkg/util/uuid" if using uuid.NewUUID().
 
 2. **Hardcoded Config Function**:
    - For each hardcoded config in a test, generate:
@@ -147,11 +146,12 @@ Instructions:
 6. **Handling Test Cases**:
    - If the original test has testcases = []:
       - Add edge cases and invalid values (empty strings, nil pointers, zero, negative, extremely large values)
-      - Preserve original test semantics
-   - If testcases exist and hardcpded cpmfiguration not related to k8s configuration field, only do add edge cases. If both hardcoded values and testcases exist, do both:
+      - Preserve original test semantics, and add comments if needed to explain the purpose of edge cases.
+   - If both hardcoded values and testcases exist, do both:
       - Generate dynamic configurations for hardcoded values using merge modes
       - Expand testcases array to include edge and invalid values
       - Run the test by combining all dynamic configs with all testcases
+   - *If testcases exist and hardcpded cpmfiguration not related to k8s configuration field, only do add edge cases. If no testcases and hardcoded configuration exists, do not rewrite the test, and do not include it in the new file.*
 
 7. **Logging and Debug**:
    - Use fmt.Println(ctestglobals.DebugPrefix(), "message") for logging.
@@ -163,7 +163,7 @@ Instructions:
      - For each test case, log the index and the config used. For example: fmt.Sprintf("Running # th test cases.\n", i)
 				fmt.Println(configObj)
      - Skipped tests due to missing config, for example: fmt.Println(ctestglobals.DebugPrefix(), "Skipping test execution. No new configurations generated. "). Note, use if-else to check if configObjs is nil or empty. If configObjs == nil, skip the test execution, and simply log the skip message and continue run tests, do not use framework.Failf break test execution.
-   - Handle errors using framework.Failf for ginkgo test, using t.Failf for go test function.
+   - Handle errors using framework.Failf for ginkgo test, using t.Fatalf for go test function.
 
 8. **Unchanged functions should never appear in the new file**: 
     - Only add new test functions, new helper functions, and getHardCodedConfigInfo<FileName> functions in the new file.

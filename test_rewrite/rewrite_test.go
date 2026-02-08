@@ -30,7 +30,7 @@ func TestRewriteWithLLM(t *testing.T) {
 
 	target := os.Getenv("REWRITE_TARGET")
 	if target == "" {
-		target = "test/integration/"
+		target = "pkg/" // plugin, and staging
 	}
 
 	var absTarget string
@@ -55,7 +55,9 @@ func TestRewriteWithLLM(t *testing.T) {
 	// Collect files
 	//---------------------------------------
 
-	files, err := CollectGoFiles(absTarget)
+	// files, err := CollectGoFiles(absTarget)
+	files, err := CollectGoFilesFromRepo(k8sRoot, absTarget)
+
 	if err != nil {
 		t.Fatalf("failed to collect files: %v", err)
 	}
@@ -91,7 +93,7 @@ func TestRewriteWithLLM(t *testing.T) {
 		}
 
 		// Skip if already rewritten and not overwriting
-		if tagged && exists && !overwrite {
+		if exists && !overwrite {
 			t.Logf("⏭️  Skipping already rewritten file: %s", file)
 			skipped++
 			continue
@@ -108,6 +110,7 @@ func TestRewriteWithLLM(t *testing.T) {
 
 		prompt := BuildPrompt(file, string(contentBytes))
 		rewrittenContent, err := CallOllama(prompt)
+		time.Sleep(30)
 		if err != nil {
 			t.Errorf("rewrite failed for %s: %v", file, err)
 			failed++

@@ -22,7 +22,7 @@ func TestCollectCtestFiles(t *testing.T) {
 
 	target := os.Getenv("COLLECT_TARGET")
 	if target == "" {
-		target = "test/integration" // default folder
+		target = "pkg" // default folder
 	}
 
 	var absTarget string
