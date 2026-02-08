@@ -1,5 +1,722 @@
 {
   "deployments": [
+    
+    {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "balancereader",
+        "labels": {
+          "application": "bank-of-anthos",
+          "environment": "development",
+          "team": "ledger",
+          "tier": "backend"
+        }
+      },
+      "spec": {
+        "selector": {
+          "matchLabels": {
+            "app": "balancereader",
+            "application": "bank-of-anthos",
+            "environment": "development",
+            "team": "ledger",
+            "tier": "backend"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "balancereader",
+              "application": "bank-of-anthos",
+              "environment": "development",
+              "team": "ledger",
+              "tier": "backend"
+            },
+            "annotations": {
+              "proxy.istio.io/config": "{ \"holdApplicationUntilProxyStarts\": true }"
+            }
+          },
+          "spec": {
+            "volumes": [
+              {
+                "name": "tmp",
+                "emptyDir": {}
+              }
+            ],
+            "containers": [
+              {
+                "name": "balancereader",
+                "image": "us-central1-docker.pkg.dev/bank-of-anthos-ci/bank-of-anthos/balancereader:v0.6.8@sha256:7668390ec0a89f885e85604b741d861e47e115365224644d4c045868100c7265",
+                
+                "env": [
+                  {
+                    "name": "VERSION",
+                    "value": "v0.6.8"
+                  },
+                  {
+                    "name": "PORT",
+                    "value": "8080"
+                  },
+                  {
+                    "name": "ENABLE_TRACING",
+                    "value": "true"
+                  },
+                  {
+                    "name": "ENABLE_METRICS",
+                    "value": "true"
+                  },
+                  {
+                    "name": "POLL_MS",
+                    "value": "100"
+                  },
+                  {
+                    "name": "CACHE_SIZE",
+                    "value": "1000000"
+                  },
+                  {
+                    "name": "JVM_OPTS",
+                    "value": "-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -Xms256m -Xmx512m"
+                  },
+                  {
+                    "name": "LOG_LEVEL",
+                    "value": "info"
+                  },
+                  {
+                    "name": "NAMESPACE",
+                    "valueFrom": {
+                      "fieldRef": {
+                        "fieldPath": "metadata.namespace"
+                      }
+                    }
+                  }
+                ],
+                "resources": {
+                  "limits": {
+                    "cpu": "500m",
+                    "ephemeral-storage": "512Mi",
+                    "memory": "512Mi"
+                  },
+                  "requests": {
+                    "cpu": "100m",
+                    "ephemeral-storage": "512Mi",
+                    "memory": "256Mi"
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "tmp",
+                    "mountPath": "/tmp"
+                  }
+                ],
+                "livenessProbe": {
+                  "httpGet": {
+                    "path": "/healthy",
+                    "port": 8080
+                  },
+                  "initialDelaySeconds": 120,
+                  "timeoutSeconds": 10,
+                  "periodSeconds": 5
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/ready",
+                    "port": 8080
+                  },
+                  "initialDelaySeconds": 60,
+                  "timeoutSeconds": 10,
+                  "periodSeconds": 5
+                },
+                "startupProbe": {
+                  "httpGet": {
+                    "path": "/healthy",
+                    "port": 8080
+                  },
+                  "periodSeconds": 10,
+                  "failureThreshold": 30
+                },
+                "securityContext": {
+                  "capabilities": {
+                    "drop": [
+                      "all"
+                    ]
+                  },
+                  "privileged": false,
+                  "readOnlyRootFilesystem": true,
+                  "allowPrivilegeEscalation": false
+                }
+              }
+            ],
+            "terminationGracePeriodSeconds": 5,
+            
+            "securityContext": {
+              "runAsUser": 1000,
+              "runAsGroup": 1000,
+              "runAsNonRoot": true,
+              "fsGroup": 1000
+            }
+          }
+        },
+        "strategy": {}
+      },
+      "status": {}
+    },
+    {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "cartservice"
+      },
+      "spec": {
+        "selector": {
+          "matchLabels": {
+            "app": "cartservice"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "cartservice"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "cartservice",
+                "image": "cartservice:1.0.0-SNAPSHOT",
+                "env": [
+                  {
+                    "name": "dubbo.registry.address",
+                    "value": "nacos://nacos-server:8848"
+                  },
+                  {
+                    "name": "spring.cloud.nacos.discovery.server-addr",
+                    "value": "nacos-server:8848"
+                  },
+                  {
+                    "name": "spring.cloud.nacos.config.server-addr",
+                    "value": "nacos-server:8848"
+                  }
+                ],
+                "resources": {}
+              }
+            ]
+          }
+        },
+        "strategy": {}
+      },
+      "status": {}
+    },
+    {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "cart-redis"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "cart-redis"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "cart-redis"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "cart-redis",
+                "image": "redis",
+                "ports": [
+                  {
+                    "containerPort": 6379
+                  }
+                ],
+                "resources": {},
+                "imagePullPolicy": "IfNotPresent"
+              }
+            ]
+          }
+        },
+        "strategy": {}
+      },
+      "status": {}
+    },
+    {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "checkoutservice"
+      },
+      "spec": {
+        "selector": {
+          "matchLabels": {
+            "app": "checkoutservice"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "checkoutservice"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "checkoutservice",
+                "image": "checkoutservice:1.0.0-SNAPSHOT",
+                "env": [
+                  {
+                    "name": "dubbo.registry.address",
+                    "value": "nacos://nacos-server:8848"
+                  },
+                  {
+                    "name": "spring.cloud.nacos.discovery.server-addr",
+                    "value": "nacos-server:8848"
+                  },
+                  {
+                    "name": "spring.cloud.nacos.config.server-addr",
+                    "value": "nacos-server:8848"
+                  }
+                ],
+                "resources": {}
+              }
+            ]
+          }
+        },
+        "strategy": {}
+      },
+      "status": {}
+    },
+    {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "checkout-mysql"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "checkout-mysql"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "checkout-mysql"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "checkout-mysql",
+                "image": "mysql:5.6",
+                "args": [
+                  "--character-set-server=utf8mb4",
+                  "--collation-server=utf8mb4_unicode_ci"
+                ],
+                "ports": [
+                  {
+                    "containerPort": 3306
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "MYSQL_DATABASE",
+                    "value": "checkout"
+                  },
+                  {
+                    "name": "MYSQL_ROOT_PASSWORD",
+                    "value": "checkoutservice"
+                  }
+                ],
+                "resources": {}
+              }
+            ]
+          }
+        },
+        "strategy": {
+          "type": "Recreate"
+        }
+      },
+      "status": {}
+    },
+    {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "csi-cinder-controllerplugin",
+        "namespace": "kube-system"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "csi-cinder-controllerplugin"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "csi-cinder-controllerplugin"
+            }
+          },
+          "spec": {
+            "volumes": [
+              {
+                "name": "socket-dir"
+              }
+            ],
+            "containers": [
+              {
+                "name": "csi-attacher",
+                "image": "registry.k8s.io/sig-storage/csi-attacher:v4.10.0",
+                "args": [
+                  "--csi-address=$(ADDRESS)",
+                  "--timeout=3m",
+                  "--leader-election=true",
+                  "--default-fstype=ext4"
+                ],
+                "env": [
+                  {
+                    "name": "ADDRESS",
+                    "value": "/var/lib/csi/sockets/pluginproxy/csi.sock"
+                  }
+                ],
+                "resources": {},
+                "volumeMounts": [
+                  {
+                    "name": "socket-dir",
+                    "mountPath": "/var/lib/csi/sockets/pluginproxy/"
+                  }
+                ],
+                "imagePullPolicy": "IfNotPresent"
+              },
+              {
+                "name": "csi-provisioner",
+                "image": "registry.k8s.io/sig-storage/csi-provisioner:v5.3.0",
+                "args": [
+                  "--csi-address=$(ADDRESS)",
+                  "--timeout=3m",
+                  "--default-fstype=ext4",
+                  "--feature-gates=Topology=true",
+                  "--extra-create-metadata",
+                  "--leader-election=true"
+                ],
+                "env": [
+                  {
+                    "name": "ADDRESS",
+                    "value": "/var/lib/csi/sockets/pluginproxy/csi.sock"
+                  }
+                ],
+                "resources": {},
+                "volumeMounts": [
+                  {
+                    "name": "socket-dir",
+                    "mountPath": "/var/lib/csi/sockets/pluginproxy/"
+                  }
+                ],
+                "imagePullPolicy": "IfNotPresent"
+              },
+              {
+                "name": "csi-snapshotter",
+                "image": "registry.k8s.io/sig-storage/csi-snapshotter:v8.3.0",
+                "args": [
+                  "--csi-address=$(ADDRESS)",
+                  "--timeout=3m",
+                  "--extra-create-metadata",
+                  "--leader-election=true"
+                ],
+                "env": [
+                  {
+                    "name": "ADDRESS",
+                    "value": "/var/lib/csi/sockets/pluginproxy/csi.sock"
+                  }
+                ],
+                "resources": {},
+                "volumeMounts": [
+                  {
+                    "name": "socket-dir",
+                    "mountPath": "/var/lib/csi/sockets/pluginproxy/"
+                  }
+                ],
+                "imagePullPolicy": "Always"
+              },
+              {
+                "name": "csi-resizer",
+                "image": "registry.k8s.io/sig-storage/csi-resizer:v1.14.0",
+                "args": [
+                  "--csi-address=$(ADDRESS)",
+                  "--timeout=3m",
+                  "--handle-volume-inuse-error=false",
+                  "--leader-election=true"
+                ],
+                "env": [
+                  {
+                    "name": "ADDRESS",
+                    "value": "/var/lib/csi/sockets/pluginproxy/csi.sock"
+                  }
+                ],
+                "resources": {},
+                "volumeMounts": [
+                  {
+                    "name": "socket-dir",
+                    "mountPath": "/var/lib/csi/sockets/pluginproxy/"
+                  }
+                ],
+                "imagePullPolicy": "IfNotPresent"
+              },
+              {
+                "name": "liveness-probe",
+                "image": "registry.k8s.io/sig-storage/livenessprobe:v2.17.0",
+                "args": [
+                  "--csi-address=$(ADDRESS)"
+                ],
+                "env": [
+                  {
+                    "name": "ADDRESS",
+                    "value": "/var/lib/csi/sockets/pluginproxy/csi.sock"
+                  }
+                ],
+                "resources": {},
+                "volumeMounts": [
+                  {
+                    "name": "socket-dir",
+                    "mountPath": "/var/lib/csi/sockets/pluginproxy/"
+                  }
+                ]
+              },
+              {
+                "name": "cinder-csi-plugin",
+                "image": "registry.k8s.io/provider-os/cinder-csi-plugin:v1.34.0",
+                "args": [
+                  "/bin/cinder-csi-plugin",
+                  "--endpoint=$(CSI_ENDPOINT)",
+                  "--cloud-config=$(CLOUD_CONFIG)",
+                  "--cluster=$(CLUSTER_NAME)",
+                  "--pvc-annotations",
+                  "--v=1"
+                ],
+                "ports": [
+                  {
+                    "name": "healthz",
+                    "containerPort": 9808,
+                    "protocol": "TCP"
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "CSI_ENDPOINT",
+                    "value": "unix://csi/csi.sock"
+                  },
+                  {
+                    "name": "CLOUD_CONFIG",
+                    "value": "/etc/config/cloud.conf"
+                  },
+                  {
+                    "name": "CLUSTER_NAME",
+                    "value": "kubernetes"
+                  }
+                ],
+                "resources": {},
+                "volumeMounts": [
+                  {
+                    "name": "socket-dir",
+                    "mountPath": "/csi"
+                  }
+                ],
+                "livenessProbe": {
+                  "httpGet": {
+                    "path": "/healthz",
+                    "port": "healthz"
+                  },
+                  "initialDelaySeconds": 10,
+                  "timeoutSeconds": 10,
+                  "periodSeconds": 60,
+                  "failureThreshold": 5
+                },
+                "imagePullPolicy": "IfNotPresent"
+              }
+            ]
+            
+          }
+        },
+        "strategy": {
+          "type": "RollingUpdate",
+          "rollingUpdate": {
+            "maxUnavailable": 0,
+            "maxSurge": 1
+          }
+        }
+      },
+      "status": {}
+    },
+    {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "contacts",
+        "labels": {
+          "application": "bank-of-anthos",
+          "environment": "development",
+          "team": "accounts",
+          "tier": "backend"
+        }
+      },
+      "spec": {
+        "selector": {
+          "matchLabels": {
+            "app": "contacts",
+            "application": "bank-of-anthos",
+            "environment": "development",
+            "team": "accounts",
+            "tier": "backend"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "contacts",
+              "application": "bank-of-anthos",
+              "environment": "development",
+              "team": "accounts",
+              "tier": "backend"
+            },
+            "annotations": {
+              "proxy.istio.io/config": "{ \"holdApplicationUntilProxyStarts\": true }"
+            }
+          },
+          "spec": {
+            "volumes": [
+              {
+                "name": "tmp",
+                "emptyDir": {}
+              }
+            ],
+            "containers": [
+              {
+                "name": "contacts",
+                "image": "us-central1-docker.pkg.dev/bank-of-anthos-ci/bank-of-anthos/contacts:v0.6.8@sha256:37bfa4be29464316a3a097d5e6700465d4aeacc9673fb570e19378891cc2d199",
+                
+                "env": [
+                  {
+                    "name": "VERSION",
+                    "value": "v0.6.8"
+                  },
+                  {
+                    "name": "PORT",
+                    "value": "8080"
+                  },
+                  {
+                    "name": "ENABLE_TRACING",
+                    "value": "true"
+                  },
+                  {
+                    "name": "LOG_LEVEL",
+                    "value": "info"
+                  }
+                ],
+                "resources": {
+                  "limits": {
+                    "cpu": "250m",
+                    "ephemeral-storage": "256Mi",
+                    "memory": "128Mi"
+                  },
+                  "requests": {
+                    "cpu": "100m",
+                    "ephemeral-storage": "256Mi",
+                    "memory": "64Mi"
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "tmp",
+                    "mountPath": "/tmp"
+                  }
+                ],
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/ready",
+                    "port": 8080
+                  },
+                  "initialDelaySeconds": 10,
+                  "timeoutSeconds": 10,
+                  "periodSeconds": 5
+                },
+                "securityContext": {
+                  "capabilities": {
+                    "drop": [
+                      "all"
+                    ]
+                  },
+                  "privileged": false,
+                  "readOnlyRootFilesystem": true,
+                  "allowPrivilegeEscalation": false
+                }
+              }
+            ],
+            "terminationGracePeriodSeconds": 5,
+            
+            "securityContext": {
+              "runAsUser": 1000,
+              "runAsGroup": 1000,
+              "runAsNonRoot": true,
+              "fsGroup": 1000
+            }
+          }
+        },
+        "strategy": {}
+      },
+      "status": {}
+    },
+    {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "argo-rollouts-dashboard",
+        "labels": {
+          "app.kubernetes.io/component": "argo-rollouts-dashboard",
+          "app.kubernetes.io/name": "argo-rollouts-dashboard",
+          "app.kubernetes.io/part-of": "argo-rollouts"
+        }
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app.kubernetes.io/name": "argo-rollouts-dashboard"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/name": "argo-rollouts-dashboard"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "argo-rollouts-dashboard",
+                "image": "quay.io/argoproj/kubectl-argo-rollouts",
+                "ports": [
+                  {
+                    "containerPort": 3100
+                  }
+                ],
+                "resources": {}
+              }
+            ]
+            
+          }
+        },
+        "strategy": {}
+      },
+      "status": {}
+    },
     {
       "kind": "Deployment",
       "apiVersion": "apps/v1",
@@ -54,6 +771,809 @@
                   {
                     "name": "db-data",
                     "mountPath": "/var/lib/postgresql/data"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "strategy": {}
+      },
+      "status": {}
+    },
+    {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "etcd-backup-operator",
+        "namespace": "kstone",
+        "labels": {
+          "app": "etcd-backup-operator"
+        }
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "etcd-backup-operator"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "etcd-backup-operator"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "etcd-backup-operator",
+                "image": "ccr.ccs.tencentyun.com/ccs-dev/etcd-operator:v1.0.4",
+                "command": [
+                  "etcd-backup-operator"
+                ],
+                "env": [
+                  {
+                    "name": "MY_POD_NAMESPACE",
+                    "valueFrom": {
+                      "fieldRef": {
+                        "apiVersion": "v1",
+                        "fieldPath": "metadata.namespace"
+                      }
+                    }
+                  },
+                  {
+                    "name": "MY_POD_NAME",
+                    "valueFrom": {
+                      "fieldRef": {
+                        "apiVersion": "v1",
+                        "fieldPath": "metadata.name"
+                      }
+                    }
+                  }
+                ],
+                "resources": {},
+                "imagePullPolicy": "Always"
+              }
+            ]
+            
+          }
+        },
+        "strategy": {}
+      },
+      "status": {}
+    },
+    {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "frontend"
+      },
+      "spec": {
+        "selector": {
+          "matchLabels": {
+            "app": "frontend"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "frontend"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "frontend",
+                "image": "frontend:1.0.0-SNAPSHOT",
+                "ports": [
+                  {
+                    "containerPort": 8080
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "dubbo.registry.address",
+                    "value": "nacos://nacos-server:8848"
+                  },
+                  {
+                    "name": "spring.cloud.nacos.discovery.server-addr",
+                    "value": "nacos-server:8848"
+                  },
+                  {
+                    "name": "spring.cloud.nacos.config.server-addr",
+                    "value": "nacos-server:8848"
+                  }
+                ],
+                "resources": {}
+              }
+            ]
+          }
+        },
+        "strategy": {}
+      },
+      "status": {}
+    },
+    {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "frontend",
+        "labels": {
+          "application": "bank-of-anthos",
+          "environment": "development",
+          "team": "frontend",
+          "tier": "web"
+        }
+      },
+      "spec": {
+        "selector": {
+          "matchLabels": {
+            "app": "frontend",
+            "application": "bank-of-anthos",
+            "environment": "development",
+            "team": "frontend",
+            "tier": "web"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "frontend",
+              "application": "bank-of-anthos",
+              "environment": "development",
+              "team": "frontend",
+              "tier": "web"
+            },
+            "annotations": {
+              "proxy.istio.io/config": "{ \"holdApplicationUntilProxyStarts\": true }"
+            }
+          },
+          "spec": {
+            "volumes": [
+              {
+                "name": "tmp",
+                "emptyDir": {}
+              }
+            ],
+            "containers": [
+              {
+                "name": "front",
+                "image": "us-central1-docker.pkg.dev/bank-of-anthos-ci/bank-of-anthos/frontend:v0.6.8@sha256:6c4b136dbc40d4b85e22f171c3d8bc5a9dea7fcb15e10577c0dfdf7774856c75",
+                
+                "env": [
+                  {
+                    "name": "VERSION",
+                    "value": "v0.6.8"
+                  },
+                  {
+                    "name": "PORT",
+                    "value": "8080"
+                  },
+                  {
+                    "name": "ENABLE_TRACING",
+                    "value": "true"
+                  },
+                  {
+                    "name": "SCHEME",
+                    "value": "http"
+                  },
+                  {
+                    "name": "LOG_LEVEL",
+                    "value": "info"
+                  }
+                ],
+                "resources": {
+                  "limits": {
+                    "cpu": "250m",
+                    "memory": "128Mi"
+                  },
+                  "requests": {
+                    "cpu": "100m",
+                    "memory": "64Mi"
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "tmp",
+                    "mountPath": "/tmp"
+                  }
+                ],
+                "livenessProbe": {
+                  "httpGet": {
+                    "path": "/ready",
+                    "port": 8080
+                  },
+                  "initialDelaySeconds": 60,
+                  "timeoutSeconds": 30,
+                  "periodSeconds": 15
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/ready",
+                    "port": 8080
+                  },
+                  "initialDelaySeconds": 10,
+                  "timeoutSeconds": 10,
+                  "periodSeconds": 5
+                },
+                "securityContext": {
+                  "capabilities": {
+                    "drop": [
+                      "all"
+                    ]
+                  },
+                  "privileged": false,
+                  "readOnlyRootFilesystem": true,
+                  "allowPrivilegeEscalation": false
+                }
+              }
+            ],
+            "terminationGracePeriodSeconds": 5,
+            
+            "securityContext": {
+              "runAsUser": 1000,
+              "runAsGroup": 1000,
+              "runAsNonRoot": true,
+              "fsGroup": 1000
+            }
+          }
+        },
+        "strategy": {}
+      },
+      "status": {}
+    },
+    {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "kstone-etcdcluster-controller",
+        "namespace": "kstone",
+        "labels": {
+          "app": "kstone-etcdcluster-controller"
+        }
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "kstone-etcdcluster-controller"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "kstone-etcdcluster-controller"
+            }
+          },
+          "spec": {
+            "volumes": [
+              {
+                "name": "kstone-kubeconfig",
+                "secret": {
+                  "secretName": "kstone-kubeconfig"
+                }
+              }
+            ],
+            "containers": [
+              {
+                "name": "kstone-etcdcluster-controller",
+                "image": "mirrors.tencent.com/etcd/kstone-controller:dev",
+                "command": [
+                  "/data/app"
+                ],
+                "args": [
+                  "etcdcluster",
+                  "--kubeconfig",
+                  "/etc/kstone/config/kubeconfig/default.yaml"
+                ],
+                "resources": {},
+                "volumeMounts": [
+                  {
+                    "name": "kstone-kubeconfig",
+                    "readOnly": true,
+                    "mountPath": "/etc/kstone/config/kubeconfig"
+                  }
+                ],
+                "imagePullPolicy": "Always"
+              }
+            ]
+          }
+        },
+        "strategy": {}
+      },
+      "status": {}
+    },
+    {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "kstone-etcdinspection-controller",
+        "namespace": "kstone",
+        "labels": {
+          "app": "kstone-etcdinspection-controller"
+        }
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "kstone-etcdinspection-controller"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "kstone-etcdinspection-controller"
+            }
+          },
+          "spec": {
+            "volumes": [
+              {
+                "name": "kstone-kubeconfig",
+                "secret": {
+                  "secretName": "kstone-kubeconfig"
+                }
+              }
+            ],
+            "containers": [
+              {
+                "name": "kstone-etcdinspection-controller",
+                "image": "mirrors.tencent.com/etcd/kstone-controller:dev",
+                "command": [
+                  "/data/app"
+                ],
+                "args": [
+                  "etcdinspection",
+                  "--kubeconfig",
+                  "/etc/kstone/config/kubeconfig/default.yaml"
+                ],
+                "resources": {},
+                "volumeMounts": [
+                  {
+                    "name": "kstone-kubeconfig",
+                    "readOnly": true,
+                    "mountPath": "/etc/kstone/config/kubeconfig"
+                  }
+                ],
+                "imagePullPolicy": "Always"
+              }
+            ]
+          }
+        },
+        "strategy": {}
+      },
+      "status": {}
+    },
+    {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "ledgerwriter",
+        "labels": {
+          "application": "bank-of-anthos",
+          "environment": "development",
+          "team": "ledger",
+          "tier": "backend"
+        }
+      },
+      "spec": {
+        "selector": {
+          "matchLabels": {
+            "app": "ledgerwriter",
+            "application": "bank-of-anthos",
+            "environment": "development",
+            "team": "ledger",
+            "tier": "backend"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "ledgerwriter",
+              "application": "bank-of-anthos",
+              "environment": "development",
+              "team": "ledger",
+              "tier": "backend"
+            },
+            "annotations": {
+              "proxy.istio.io/config": "{ \"holdApplicationUntilProxyStarts\": true }"
+            }
+          },
+          "spec": {
+            "volumes": [
+              {
+                "name": "tmp",
+                "emptyDir": {}
+              }
+            ],
+            "containers": [
+              {
+                "name": "ledgerwriter",
+                "image": "us-central1-docker.pkg.dev/bank-of-anthos-ci/bank-of-anthos/ledgerwriter:v0.6.8@sha256:aa1a38f0a68cb12a724fe27da69e1bf4a25d445a1793b8bb9ae7d17a1be90d17",
+                
+                "env": [
+                  {
+                    "name": "VERSION",
+                    "value": "v0.6.8"
+                  },
+                  {
+                    "name": "PORT",
+                    "value": "8080"
+                  },
+                  {
+                    "name": "ENABLE_TRACING",
+                    "value": "true"
+                  },
+                  {
+                    "name": "ENABLE_METRICS",
+                    "value": "true"
+                  },
+                  {
+                    "name": "JVM_OPTS",
+                    "value": "-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -Xms256m -Xmx512m"
+                  },
+                  {
+                    "name": "LOG_LEVEL",
+                    "value": "info"
+                  },
+                  {
+                    "name": "NAMESPACE",
+                    "valueFrom": {
+                      "fieldRef": {
+                        "fieldPath": "metadata.namespace"
+                      }
+                    }
+                  }
+                ],
+                "resources": {
+                  "limits": {
+                    "cpu": "500m",
+                    "ephemeral-storage": "512Mi",
+                    "memory": "512Mi"
+                  },
+                  "requests": {
+                    "cpu": "100m",
+                    "ephemeral-storage": "512Mi",
+                    "memory": "256Mi"
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "tmp",
+                    "mountPath": "/tmp"
+                  }
+                ],
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/ready",
+                    "port": 8080
+                  },
+                  "initialDelaySeconds": 60,
+                  "timeoutSeconds": 10,
+                  "periodSeconds": 5
+                },
+                "startupProbe": {
+                  "httpGet": {
+                    "path": "/ready",
+                    "port": 8080
+                  },
+                  "periodSeconds": 10,
+                  "failureThreshold": 30
+                },
+                "securityContext": {
+                  "capabilities": {
+                    "drop": [
+                      "all"
+                    ]
+                  },
+                  "privileged": false,
+                  "readOnlyRootFilesystem": true,
+                  "allowPrivilegeEscalation": false
+                }
+              }
+            ],
+            "terminationGracePeriodSeconds": 5,
+           
+            "securityContext": {
+              "runAsUser": 1000,
+              "runAsGroup": 1000,
+              "runAsNonRoot": true,
+              "fsGroup": 1000
+            }
+          }
+        },
+        "strategy": {}
+      },
+      "status": {}
+    },
+    {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "loadgenerator",
+        "labels": {
+          "environment": "development",
+          "team": "loadgenerator",
+          "tier": "test"
+        }
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "loadgenerator",
+            "environment": "development",
+            "team": "loadgenerator",
+            "tier": "test"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "loadgenerator",
+              "environment": "development",
+              "team": "loadgenerator",
+              "tier": "test"
+            },
+            "annotations": {
+              "sidecar.istio.io/rewriteAppHTTPProbers": "true"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "loadgenerator",
+                "image": "us-central1-docker.pkg.dev/bank-of-anthos-ci/bank-of-anthos/loadgenerator:v0.6.8@sha256:a12f8c6ec8bd59b607a12b63810f2512ef6f58284cbca38b32c70e85970dc455",
+                "env": [
+                  {
+                    "name": "FRONTEND_ADDR",
+                    "value": "frontend:80"
+                  },
+                  {
+                    "name": "USERS",
+                    "value": "5"
+                  },
+                  {
+                    "name": "LOG_LEVEL",
+                    "value": "error"
+                  }
+                ],
+                "resources": {
+                  "limits": {
+                    "cpu": "250m",
+                    "memory": "1Gi"
+                  },
+                  "requests": {
+                    "cpu": "100m",
+                    "memory": "512Mi"
+                  }
+                },
+                "securityContext": {
+                  "capabilities": {
+                    "drop": [
+                      "all"
+                    ]
+                  },
+                  "privileged": false,
+                  "readOnlyRootFilesystem": true,
+                  "allowPrivilegeEscalation": false
+                }
+              }
+            ],
+            "restartPolicy": "Always",
+            "terminationGracePeriodSeconds": 5,
+            "serviceAccountName": "default",
+            "securityContext": {
+              "runAsUser": 1000,
+              "runAsGroup": 1000,
+              "runAsNonRoot": true,
+              "fsGroup": 1000
+            }
+          }
+        },
+        "strategy": {}
+      },
+      "status": {}
+    },
+    {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "nacos-server"
+      },
+      "spec": {
+        "selector": {
+          "matchLabels": {
+            "app": "nacos-server"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "nacos-server"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "nacos-standalone",
+                "image": "nacos/nacos-server:latest",
+                "ports": [
+                  {
+                    "containerPort": 8848
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "PREFER_HOST_MODE",
+                    "value": "hostname"
+                  },
+                  {
+                    "name": "MODE",
+                    "value": "standalone"
+                  }
+                ],
+                "resources": {}
+              }
+            ]
+          }
+        },
+        "strategy": {}
+      },
+      "status": {}
+    },
+    {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "productservice"
+      },
+      "spec": {
+        "selector": {
+          "matchLabels": {
+            "app": "productservice"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "productservice",
+              "version": "1.0.0-SNAPSHOT"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "productservice",
+                "image": "productservice:1.0.0-SNAPSHOT",
+                "env": [
+                  {
+                    "name": "dubbo.registry.address",
+                    "value": "nacos://nacos-server:8848"
+                  },
+                  {
+                    "name": "spring.cloud.nacos.discovery.server-addr",
+                    "value": "nacos-server:8848"
+                  },
+                  {
+                    "name": "spring.cloud.nacos.config.server-addr",
+                    "value": "nacos-server:8848"
+                  }
+                ],
+                "resources": {}
+              }
+            ]
+          }
+        },
+        "strategy": {}
+      },
+      "status": {}
+    },
+    {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "product-mysql"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "product-mysql"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "product-mysql"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "product-mysql",
+                "image": "mysql:5.6",
+                "args": [
+                  "--character-set-server=utf8mb4",
+                  "--collation-server=utf8mb4_unicode_ci"
+                ],
+                "ports": [
+                  {
+                    "containerPort": 3306
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "MYSQL_DATABASE",
+                    "value": "product"
+                  },
+                  {
+                    "name": "MYSQL_ROOT_PASSWORD",
+                    "value": "productservice"
+                  }
+                ],
+                "resources": {}
+              }
+            ]
+          }
+        },
+        "strategy": {
+          "type": "Recreate"
+        }
+      },
+      "status": {}
+    },
+    {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "prometheus-deployment",
+        "namespace": "monitoring",
+        "labels": {
+          "app": "prometheus-server"
+        }
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "prometheus-server"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "prometheus-server"
+            }
+          },
+          "spec": {
+            "volumes": [
+              
+              {
+                "name": "prometheus-storage-volume",
+                "emptyDir": {}
+              }
+            ],
+            "containers": [
+              {
+                "name": "prometheus",
+                "image": "prom/prometheus",
+                "args": [
+                  "--config.file=/etc/prometheus/prometheus.yml",
+                  "--storage.tsdb.path=/prometheus/"
+                ],
+                "ports": [
+                  {
+                    "containerPort": 9090
+                  }
+                ],
+                "resources": {},
+                "volumeMounts": [
+                  
+                  {
+                    "name": "prometheus-storage-volume",
+                    "mountPath": "/prometheus/"
                   }
                 ]
               }
@@ -164,6 +1684,626 @@
       "kind": "Deployment",
       "apiVersion": "apps/v1",
       "metadata": {
+        "name": "selenium-standalone-chrome"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "selenium-standalone-chrome"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "selenium-standalone-chrome"
+            }
+          },
+          "spec": {
+            "volumes": [
+              {
+                "name": "dshm",
+                "emptyDir": {
+                  "medium": "Memory",
+                  "sizeLimit": "2Gi"
+                }
+              }
+            ],
+            "containers": [
+              {
+                "name": "chrome",
+                "image": "selenium/standalone-chrome:4.39.0-20251212",
+                "ports": [
+                  {
+                    "containerPort": 4444
+                  },
+                  {
+                    "containerPort": 7900
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "SE_SESSION_REQUEST_TIMEOUT",
+                    "value": "600"
+                  },
+                  {
+                    "name": "SE_ROUTER_USERNAME",
+                    "value": "admin"
+                  },
+                  {
+                    "name": "SE_ROUTER_PASSWORD",
+                    "value": "admin"
+                  },
+                  {
+                    "name": "SE_NODE_SESSION_TIMEOUT",
+                    "value": "600"
+                  },
+                  {
+                    "name": "SE_NODE_OVERRIDE_MAX_SESSIONS",
+                    "value": "true"
+                  }
+                ],
+                "resources": {
+                  "limits": {
+                    "cpu": "2",
+                    "memory": "4Gi"
+                  },
+                  "requests": {
+                    "cpu": "500m",
+                    "memory": "1Gi"
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "dshm",
+                    "mountPath": "/dev/shm"
+                  }
+                ],
+                "livenessProbe": {
+                  "exec": {
+                    "command": [
+                      "/bin/sh",
+                      "-c",
+                      "curl -G --fail --silent -u ${SE_ROUTER_USERNAME}:${SE_ROUTER_PASSWORD} localhost:4444/status"
+                    ]
+                  },
+                  "initialDelaySeconds": 30,
+                  "timeoutSeconds": 5
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/readyz",
+                    "port": 4444
+                  },
+                  "initialDelaySeconds": 30,
+                  "timeoutSeconds": 5
+                }
+              }
+            ]
+          }
+        },
+        "strategy": {}
+      },
+      "status": {}
+    },
+    {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "selenium-standalone-edge"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "selenium-standalone-edge"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "selenium-standalone-edge"
+            }
+          },
+          "spec": {
+            "volumes": [
+              {
+                "name": "dshm",
+                "emptyDir": {
+                  "medium": "Memory",
+                  "sizeLimit": "2Gi"
+                }
+              }
+            ],
+            "containers": [
+              {
+                "name": "chrome",
+                "image": "selenium/standalone-edge:4.39.0-20251212",
+                "ports": [
+                  {
+                    "containerPort": 4444
+                  },
+                  {
+                    "containerPort": 7900
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "SE_SESSION_REQUEST_TIMEOUT",
+                    "value": "600"
+                  },
+                  {
+                    "name": "SE_ROUTER_USERNAME",
+                    "value": "admin"
+                  },
+                  {
+                    "name": "SE_ROUTER_PASSWORD",
+                    "value": "admin"
+                  },
+                  {
+                    "name": "SE_NODE_SESSION_TIMEOUT",
+                    "value": "600"
+                  },
+                  {
+                    "name": "SE_NODE_OVERRIDE_MAX_SESSIONS",
+                    "value": "true"
+                  }
+                ],
+                "resources": {
+                  "limits": {
+                    "cpu": "2",
+                    "memory": "4Gi"
+                  },
+                  "requests": {
+                    "cpu": "500m",
+                    "memory": "1Gi"
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "dshm",
+                    "mountPath": "/dev/shm"
+                  }
+                ],
+                "livenessProbe": {
+                  "exec": {
+                    "command": [
+                      "/bin/sh",
+                      "-c",
+                      "curl -G --fail --silent -u ${SE_ROUTER_USERNAME}:${SE_ROUTER_PASSWORD} localhost:4444/status"
+                    ]
+                  },
+                  "initialDelaySeconds": 30,
+                  "timeoutSeconds": 5
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/readyz",
+                    "port": 4444
+                  },
+                  "initialDelaySeconds": 30,
+                  "timeoutSeconds": 5
+                }
+              }
+            ]
+          }
+        },
+        "strategy": {}
+      },
+      "status": {}
+    },
+    {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "selenium-standalone-firefox"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "selenium-standalone-firefox"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "selenium-standalone-firefox"
+            }
+          },
+          "spec": {
+            "volumes": [
+              {
+                "name": "dshm",
+                "emptyDir": {
+                  "medium": "Memory",
+                  "sizeLimit": "2Gi"
+                }
+              }
+            ],
+            "containers": [
+              {
+                "name": "chrome",
+                "image": "selenium/standalone-firefox:4.39.0-20251212",
+                "ports": [
+                  {
+                    "containerPort": 4444
+                  },
+                  {
+                    "containerPort": 7900
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "SE_SESSION_REQUEST_TIMEOUT",
+                    "value": "600"
+                  },
+                  {
+                    "name": "SE_ROUTER_USERNAME",
+                    "value": "admin"
+                  },
+                  {
+                    "name": "SE_ROUTER_PASSWORD",
+                    "value": "admin"
+                  },
+                  {
+                    "name": "SE_NODE_SESSION_TIMEOUT",
+                    "value": "600"
+                  },
+                  {
+                    "name": "SE_NODE_OVERRIDE_MAX_SESSIONS",
+                    "value": "true"
+                  }
+                ],
+                "resources": {
+                  "limits": {
+                    "cpu": "2",
+                    "memory": "4Gi"
+                  },
+                  "requests": {
+                    "cpu": "500m",
+                    "memory": "1Gi"
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "dshm",
+                    "mountPath": "/dev/shm"
+                  }
+                ],
+                "livenessProbe": {
+                  "exec": {
+                    "command": [
+                      "/bin/sh",
+                      "-c",
+                      "curl -G --fail --silent -u ${SE_ROUTER_USERNAME}:${SE_ROUTER_PASSWORD} localhost:4444/status"
+                    ]
+                  },
+                  "initialDelaySeconds": 30,
+                  "timeoutSeconds": 5
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/readyz",
+                    "port": 4444
+                  },
+                  "initialDelaySeconds": 30,
+                  "timeoutSeconds": 5
+                }
+              }
+            ]
+          }
+        },
+        "strategy": {}
+      },
+      "status": {}
+    },
+    {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "transactionhistory",
+        "labels": {
+          "application": "bank-of-anthos",
+          "environment": "development",
+          "team": "ledger",
+          "tier": "backend"
+        }
+      },
+      "spec": {
+        "selector": {
+          "matchLabels": {
+            "app": "transactionhistory",
+            "application": "bank-of-anthos",
+            "environment": "development",
+            "team": "ledger",
+            "tier": "backend"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "transactionhistory",
+              "application": "bank-of-anthos",
+              "environment": "development",
+              "team": "ledger",
+              "tier": "backend"
+            },
+            "annotations": {
+              "proxy.istio.io/config": "{ \"holdApplicationUntilProxyStarts\": true }"
+            }
+          },
+          "spec": {
+            "volumes": [
+              {
+                "name": "tmp",
+                "emptyDir": {}
+              }
+            ],
+            "containers": [
+              {
+                "name": "transactionhistory",
+                "image": "us-central1-docker.pkg.dev/bank-of-anthos-ci/bank-of-anthos/transactionhistory:v0.6.8@sha256:208465ebd375be12b92008f7d744e7128cf0b937527df93f9edb86944b6fbc93",
+                
+                "env": [
+                  {
+                    "name": "VERSION",
+                    "value": "v0.6.8"
+                  },
+                  {
+                    "name": "PORT",
+                    "value": "8080"
+                  },
+                  {
+                    "name": "ENABLE_TRACING",
+                    "value": "true"
+                  },
+                  {
+                    "name": "ENABLE_METRICS",
+                    "value": "true"
+                  },
+                  {
+                    "name": "POLL_MS",
+                    "value": "100"
+                  },
+                  {
+                    "name": "CACHE_SIZE",
+                    "value": "1000"
+                  },
+                  {
+                    "name": "CACHE_MINUTES",
+                    "value": "60"
+                  },
+                  {
+                    "name": "HISTORY_LIMIT",
+                    "value": "100"
+                  },
+                  {
+                    "name": "JVM_OPTS",
+                    "value": "-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -Xms256m -Xmx512m"
+                  },
+                  {
+                    "name": "LOG_LEVEL",
+                    "value": "info"
+                  },
+                  {
+                    "name": "NAMESPACE",
+                    "valueFrom": {
+                      "fieldRef": {
+                        "fieldPath": "metadata.namespace"
+                      }
+                    }
+                  }
+                ],
+                "resources": {
+                  "limits": {
+                    "cpu": "500m",
+                    "ephemeral-storage": "512Mi",
+                    "memory": "512Mi"
+                  },
+                  "requests": {
+                    "cpu": "100m",
+                    "ephemeral-storage": "512Mi",
+                    "memory": "256Mi"
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "tmp",
+                    "mountPath": "/tmp"
+                  }
+                ],
+                "livenessProbe": {
+                  "httpGet": {
+                    "path": "/healthy",
+                    "port": 8080
+                  },
+                  "initialDelaySeconds": 120,
+                  "timeoutSeconds": 10,
+                  "periodSeconds": 5
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/ready",
+                    "port": 8080
+                  },
+                  "initialDelaySeconds": 60,
+                  "timeoutSeconds": 10,
+                  "periodSeconds": 5
+                },
+                "startupProbe": {
+                  "httpGet": {
+                    "path": "/healthy",
+                    "port": 8080
+                  },
+                  "periodSeconds": 10,
+                  "failureThreshold": 30
+                },
+                "securityContext": {
+                  "capabilities": {
+                    "drop": [
+                      "all"
+                    ]
+                  },
+                  "privileged": false,
+                  "readOnlyRootFilesystem": true,
+                  "allowPrivilegeEscalation": false
+                }
+              }
+            ],
+            "terminationGracePeriodSeconds": 5,
+            "securityContext": {
+              "runAsUser": 1000,
+              "runAsGroup": 1000,
+              "runAsNonRoot": true,
+              "fsGroup": 1000
+            }
+          }
+        },
+        "strategy": {}
+      },
+      "status": {}
+    },
+    {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "userservice",
+        "labels": {
+          "application": "bank-of-anthos",
+          "environment": "development",
+          "team": "accounts",
+          "tier": "backend"
+        }
+      },
+      "spec": {
+        "selector": {
+          "matchLabels": {
+            "app": "userservice",
+            "application": "bank-of-anthos",
+            "environment": "development",
+            "team": "accounts",
+            "tier": "backend"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "userservice",
+              "application": "bank-of-anthos",
+              "environment": "development",
+              "team": "accounts",
+              "tier": "backend"
+            },
+            "annotations": {
+              "proxy.istio.io/config": "{ \"holdApplicationUntilProxyStarts\": true }"
+            }
+          },
+          "spec": {
+            "volumes": [
+              {
+                "name": "tmp",
+                "emptyDir": {}
+              }
+            ],
+            "containers": [
+              {
+                "name": "userservice",
+                "image": "us-central1-docker.pkg.dev/bank-of-anthos-ci/bank-of-anthos/userservice:v0.6.8@sha256:dc677c84f994ed34ba1308d0745a92fdab070cd93d06380251eb04420933477e",
+                "ports": [
+                  {
+                    "name": "http-server",
+                    "containerPort": 8080
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "VERSION",
+                    "value": "v0.6.8"
+                  },
+                  {
+                    "name": "PORT",
+                    "value": "8080"
+                  },
+                  {
+                    "name": "ENABLE_TRACING",
+                    "value": "true"
+                  },
+                  {
+                    "name": "TOKEN_EXPIRY_SECONDS",
+                    "value": "3600"
+                  },
+                  {
+                    "name": "PRIV_KEY_PATH",
+                    "value": "/tmp/.ssh/privatekey"
+                  },
+                  {
+                    "name": "LOG_LEVEL",
+                    "value": "info"
+                  }
+                ],
+                "resources": {
+                  "limits": {
+                    "cpu": "500m",
+                    "ephemeral-storage": "256Mi",
+                    "memory": "256Mi"
+                  },
+                  "requests": {
+                    "cpu": "260m",
+                    "ephemeral-storage": "256Mi",
+                    "memory": "128Mi"
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "tmp",
+                    "mountPath": "/tmp"
+                  },
+                  {
+                    "name": "keys",
+                    "readOnly": true,
+                    "mountPath": "/tmp/.ssh"
+                  }
+                ],
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/ready",
+                    "port": 8080
+                  },
+                  "initialDelaySeconds": 10,
+                  "timeoutSeconds": 10,
+                  "periodSeconds": 5
+                },
+                "securityContext": {
+                  "capabilities": {
+                    "drop": [
+                      "all"
+                    ]
+                  },
+                  "privileged": false,
+                  "readOnlyRootFilesystem": true,
+                  "allowPrivilegeEscalation": false
+                }
+              }
+            ],
+            "terminationGracePeriodSeconds": 5,
+           
+            "securityContext": {
+              "runAsUser": 1000,
+              "runAsGroup": 1000,
+              "runAsNonRoot": true,
+              "fsGroup": 1000
+            }
+          }
+        },
+        "strategy": {}
+      },
+      "status": {}
+    },
+    {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1",
+      "metadata": {
         "name": "vote",
         "labels": {
           "app": "vote"
@@ -239,11 +2379,586 @@
       "status": {}
     }
   ],
-  "statefulSets": null,
-  "daemonSets": null,
+  "statefulSets": [
+    {
+      "kind": "StatefulSet",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "accounts-db",
+        "labels": {
+          "application": "bank-of-anthos",
+          "environment": "development",
+          "team": "accounts",
+          "tier": "db"
+        }
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "accounts-db",
+            "application": "bank-of-anthos",
+            "environment": "development",
+            "team": "accounts",
+            "tier": "db"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "accounts-db",
+              "application": "bank-of-anthos",
+              "environment": "development",
+              "team": "accounts",
+              "tier": "db"
+            }
+          },
+          "spec": {
+            "volumes": [
+              {
+                "name": "postgresdb",
+                "emptyDir": {}
+              }
+            ],
+            "containers": [
+              {
+                "name": "accounts-db",
+                "image": "us-central1-docker.pkg.dev/bank-of-anthos-ci/bank-of-anthos/accounts-db:v0.6.8@sha256:d1f7b4b42fbbad5b3f8c85c67a15f4e27cc9a054ae8bc2379e3f0319e313ce9d",
+                "ports": [
+                  {
+                    "containerPort": 5432
+                  }
+                ],
+                "resources": {
+                  "limits": {
+                    "cpu": "250m",
+                    "memory": "512Mi"
+                  },
+                  "requests": {
+                    "cpu": "100m",
+                    "memory": "128Mi"
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "postgresdb",
+                    "mountPath": "/var/lib/postgresql/data",
+                    "subPath": "postgres"
+                  }
+                ]
+              }
+            ],
+            "serviceAccountName": "default"
+           
+          }
+        },
+        "serviceName": "accounts-db",
+        "updateStrategy": {}
+      },
+      "status": {
+        "replicas": 0,
+        "availableReplicas": 0
+      }
+    },
+    {
+      "kind": "StatefulSet",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "ledger-db",
+        "labels": {
+          "application": "bank-of-anthos",
+          "environment": "development",
+          "team": "ledger",
+          "tier": "db"
+        }
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "ledger-db",
+            "application": "bank-of-anthos",
+            "environment": "development",
+            "team": "ledger",
+            "tier": "db"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "ledger-db",
+              "application": "bank-of-anthos",
+              "environment": "development",
+              "team": "ledger",
+              "tier": "db"
+            }
+          },
+          "spec": {
+            "volumes": [
+              {
+                "name": "postgresdb",
+                "emptyDir": {}
+              }
+            ],
+            "containers": [
+              {
+                "name": "postgres",
+                "image": "us-central1-docker.pkg.dev/bank-of-anthos-ci/bank-of-anthos/ledger-db:v0.6.8@sha256:e02287f003226f1aad693766e1eecd50272ce6285481906fc9a715cc4f7a5ba9",
+                "ports": [
+                  {
+                    "containerPort": 5432
+                  }
+                ],
+                "resources": {
+                  "limits": {
+                    "cpu": "250m",
+                    "memory": "1Gi"
+                  },
+                  "requests": {
+                    "cpu": "100m",
+                    "memory": "512Mi"
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "postgresdb",
+                    "mountPath": "/var/lib/postgresql/data",
+                    "subPath": "postgres"
+                  }
+                ]
+              }
+            ],
+            "serviceAccountName": "default"
+          }
+        },
+        "serviceName": "ledger-db",
+        "updateStrategy": {}
+      },
+      "status": {
+        "replicas": 0,
+        "availableReplicas": 0
+      }
+    }
+  ],
+  "daemonSets": [
+    {
+      "kind": "DaemonSet",
+      "apiVersion": "apps/v1",
+      "metadata": {
+        "name": "csi-cinder-nodeplugin",
+        "namespace": "kube-system"
+      },
+      "spec": {
+        "selector": {
+          "matchLabels": {
+            "app": "csi-cinder-nodeplugin"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "csi-cinder-nodeplugin"
+            }
+          },
+          "spec": {
+            "volumes": [
+              {
+                "name": "socket-dir",
+                "hostPath": {
+                  "path": "/var/lib/kubelet/plugins/cinder.csi.openstack.org",
+                  "type": "DirectoryOrCreate"
+                }
+              },
+              {
+                "name": "registration-dir",
+                "hostPath": {
+                  "path": "/var/lib/kubelet/plugins_registry/",
+                  "type": "Directory"
+                }
+              },
+              {
+                "name": "kubelet-dir",
+                "hostPath": {
+                  "path": "/var/lib/kubelet",
+                  "type": "Directory"
+                }
+              },
+              {
+                "name": "pods-probe-dir",
+                "hostPath": {
+                  "path": "/dev",
+                  "type": "Directory"
+                }
+              }
+            ],
+            "containers": [
+              {
+                "name": "node-driver-registrar",
+                "image": "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.15.0",
+                "args": [
+                  "--csi-address=$(ADDRESS)",
+                  "--kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)"
+                ],
+                "env": [
+                  {
+                    "name": "ADDRESS",
+                    "value": "/csi/csi.sock"
+                  },
+                  {
+                    "name": "DRIVER_REG_SOCK_PATH",
+                    "value": "/var/lib/kubelet/plugins/cinder.csi.openstack.org/csi.sock"
+                  },
+                  {
+                    "name": "KUBE_NODE_NAME",
+                    "valueFrom": {
+                      "fieldRef": {
+                        "fieldPath": "spec.nodeName"
+                      }
+                    }
+                  }
+                ],
+                "resources": {},
+                "volumeMounts": [
+                  {
+                    "name": "socket-dir",
+                    "mountPath": "/csi"
+                  },
+                  {
+                    "name": "registration-dir",
+                    "mountPath": "/registration"
+                  }
+                ],
+                "imagePullPolicy": "IfNotPresent"
+              },
+              {
+                "name": "liveness-probe",
+                "image": "registry.k8s.io/sig-storage/livenessprobe:v2.17.0",
+                "args": [
+                  "--csi-address=/csi/csi.sock"
+                ],
+                "resources": {},
+                "volumeMounts": [
+                  {
+                    "name": "socket-dir",
+                    "mountPath": "/csi"
+                  }
+                ]
+              },
+              {
+                "name": "cinder-csi-plugin",
+                "image": "registry.k8s.io/provider-os/cinder-csi-plugin:v1.34.0",
+                "args": [
+                  "/bin/cinder-csi-plugin",
+                  "--endpoint=$(CSI_ENDPOINT)",
+                  "--provide-controller-service=false",
+                  "--cloud-config=$(CLOUD_CONFIG)",
+                  "--v=1"
+                ],
+                "ports": [
+                  {
+                    "name": "healthz",
+                    "containerPort": 9808,
+                    "protocol": "TCP"
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "CSI_ENDPOINT",
+                    "value": "unix://csi/csi.sock"
+                  },
+                  {
+                    "name": "CLOUD_CONFIG",
+                    "value": "/etc/config/cloud.conf"
+                  }
+                ],
+                "resources": {},
+                "volumeMounts": [
+                  {
+                    "name": "socket-dir",
+                    "mountPath": "/csi"
+                  },
+                  {
+                    "name": "kubelet-dir",
+                    "mountPath": "/var/lib/kubelet",
+                    "mountPropagation": "Bidirectional"
+                  },
+                  {
+                    "name": "pods-probe-dir",
+                    "mountPath": "/dev",
+                    "mountPropagation": "HostToContainer"
+                  },
+                  {
+                    "name": "secret-cinderplugin",
+                    "readOnly": true,
+                    "mountPath": "/etc/config"
+                  }
+                ],
+                "livenessProbe": {
+                  "httpGet": {
+                    "path": "/healthz",
+                    "port": "healthz"
+                  },
+                  "initialDelaySeconds": 10,
+                  "timeoutSeconds": 3,
+                  "periodSeconds": 10,
+                  "failureThreshold": 5
+                },
+                "imagePullPolicy": "IfNotPresent",
+                "securityContext": {
+                  "capabilities": {
+                    "add": [
+                      "SYS_ADMIN"
+                    ]
+                  },
+                  "privileged": true,
+                  "allowPrivilegeEscalation": true
+                }
+              }
+            ],
+            
+            "hostNetwork": false,
+            "tolerations": [
+              {
+                "operator": "Exists"
+              }
+            ]
+          }
+        },
+        "updateStrategy": {}
+      },
+      "status": {
+        "currentNumberScheduled": 0,
+        "numberMisscheduled": 0,
+        "desiredNumberScheduled": 0,
+        "numberReady": 0
+      }
+    }
+  ],
   "replicaSets": null,
-  "pods": null,
+  "pods": [
+    {
+      "kind": "Pod",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "barbican-kms"
+      },
+      "spec": {
+        "volumes": [
+          {
+            "name": "config",
+            "hostPath": {
+              "path": "/etc/kubernetes"
+            }
+          },
+          {
+            "name": "socket-dir",
+            "hostPath": {
+              "path": "/var/lib/kms/",
+              "type": "DirectoryOrCreate"
+            }
+          }
+        ],
+        "containers": [
+          {
+            "name": "barbican-kms",
+            "image": "registry.k8s.io/provider-os/barbican-kms-plugin:v1.34.0",
+            "args": [
+              "--socketpath=/kms/kms.sock",
+              "--cloud-config=/etc/kubernetes/cloud-config"
+            ],
+            "resources": {},
+            "volumeMounts": [
+              {
+                "name": "config",
+                "mountPath": "/etc/kubernetes/"
+              },
+              {
+                "name": "socket-dir",
+                "mountPath": "/kms/"
+              }
+            ]
+          }
+        ]
+      },
+      "status": {}
+    }
+  ],
   "services": [
+    {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "accounts-db",
+        "labels": {
+          "application": "bank-of-anthos",
+          "environment": "development",
+          "team": "accounts",
+          "tier": "db"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "tcp",
+            "protocol": "TCP",
+            "port": 5432,
+            "targetPort": 5432
+          }
+        ],
+        "selector": {
+          "app": "accounts-db",
+          "application": "bank-of-anthos",
+          "environment": "development",
+          "team": "accounts",
+          "tier": "db"
+        },
+        "type": "ClusterIP"
+      },
+      "status": {
+        "loadBalancer": {}
+      }
+    },
+    {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "balancereader",
+        "labels": {
+          "application": "bank-of-anthos",
+          "environment": "development",
+          "team": "ledger",
+          "tier": "backend"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "http",
+            "port": 8080,
+            "targetPort": 8080
+          }
+        ],
+        "selector": {
+          "app": "balancereader",
+          "application": "bank-of-anthos",
+          "environment": "development",
+          "team": "ledger",
+          "tier": "backend"
+        },
+        "type": "ClusterIP"
+      },
+      "status": {
+        "loadBalancer": {}
+      }
+    },
+    {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "cart-redis",
+        "labels": {
+          "app": "cart-redis"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "port": 6379,
+            "targetPort": 6379
+          }
+        ],
+        "selector": {
+          "app": "cart-redis"
+        }
+      },
+      "status": {
+        "loadBalancer": {}
+      }
+    },
+    {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "checkout-mysql",
+        "labels": {
+          "app": "checkout-mysql"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "port": 3306,
+            "targetPort": 3306
+          }
+        ],
+        "selector": {
+          "app": "checkout-mysql"
+        }
+      },
+      "status": {
+        "loadBalancer": {}
+      }
+    },
+    {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "contacts",
+        "labels": {
+          "application": "bank-of-anthos",
+          "environment": "development",
+          "team": "accounts",
+          "tier": "backend"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "http",
+            "port": 8080,
+            "targetPort": 8080
+          }
+        ],
+        "selector": {
+          "app": "contacts",
+          "application": "bank-of-anthos",
+          "environment": "development",
+          "team": "accounts",
+          "tier": "backend"
+        },
+        "type": "ClusterIP"
+      },
+      "status": {
+        "loadBalancer": {}
+      }
+    },
+    {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "argo-rollouts-dashboard",
+        "labels": {
+          "app.kubernetes.io/component": "argo-rollouts-dashboard",
+          "app.kubernetes.io/name": "argo-rollouts-dashboard",
+          "app.kubernetes.io/part-of": "argo-rollouts"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "protocol": "TCP",
+            "port": 3100,
+            "targetPort": 3100
+          }
+        ],
+        "selector": {
+          "app.kubernetes.io/name": "argo-rollouts-dashboard"
+        }
+      },
+      "status": {
+        "loadBalancer": {}
+      }
+    },
     {
       "kind": "Service",
       "apiVersion": "v1",
@@ -265,6 +2980,226 @@
           "app": "db"
         },
         "type": "ClusterIP"
+      },
+      "status": {
+        "loadBalancer": {}
+      }
+    },
+    {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "frontend"
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "http",
+            "port": 8080,
+            "targetPort": 8080
+          }
+        ],
+        "selector": {
+          "app": "frontend"
+        },
+        "type": "ClusterIP"
+      },
+      "status": {
+        "loadBalancer": {}
+      }
+    },
+    {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "frontend-external"
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "http",
+            "port": 8080,
+            "targetPort": 8080
+          }
+        ],
+        "selector": {
+          "app": "frontend"
+        },
+        "type": "LoadBalancer"
+      },
+      "status": {
+        "loadBalancer": {}
+      }
+    },
+    {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "frontend",
+        "labels": {
+          "application": "bank-of-anthos",
+          "environment": "development",
+          "team": "frontend",
+          "tier": "web"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "http",
+            "port": 80,
+            "targetPort": 8080
+          }
+        ],
+        "selector": {
+          "app": "frontend",
+          "application": "bank-of-anthos",
+          "environment": "development",
+          "team": "frontend",
+          "tier": "web"
+        },
+        "type": "LoadBalancer"
+      },
+      "status": {
+        "loadBalancer": {}
+      }
+    },
+    {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "ledger-db",
+        "labels": {
+          "application": "bank-of-anthos",
+          "environment": "development",
+          "team": "ledger",
+          "tier": "db"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "tcp",
+            "port": 5432,
+            "targetPort": 5432
+          }
+        ],
+        "selector": {
+          "app": "ledger-db",
+          "application": "bank-of-anthos",
+          "environment": "development",
+          "team": "ledger",
+          "tier": "db"
+        },
+        "type": "ClusterIP"
+      },
+      "status": {
+        "loadBalancer": {}
+      }
+    },
+    {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "ledgerwriter",
+        "labels": {
+          "application": "bank-of-anthos",
+          "environment": "development",
+          "team": "ledger",
+          "tier": "backend"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "http",
+            "port": 8080,
+            "targetPort": 8080
+          }
+        ],
+        "selector": {
+          "app": "ledgerwriter",
+          "application": "bank-of-anthos",
+          "environment": "development",
+          "team": "ledger",
+          "tier": "backend"
+        },
+        "type": "ClusterIP"
+      },
+      "status": {
+        "loadBalancer": {}
+      }
+    },
+    {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "nacos-server"
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "http",
+            "port": 8848,
+            "targetPort": 8848
+          }
+        ],
+        "selector": {
+          "app": "nacos-server"
+        },
+        "type": "ClusterIP"
+      },
+      "status": {
+        "loadBalancer": {}
+      }
+    },
+    {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "product-mysql",
+        "labels": {
+          "app": "product-mysql"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "port": 3306,
+            "targetPort": 3306
+          }
+        ],
+        "selector": {
+          "app": "product-mysql"
+        }
+      },
+      "status": {
+        "loadBalancer": {}
+      }
+    },
+    {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "prometheus-service",
+        "namespace": "monitoring",
+        "annotations": {
+          "prometheus.io/port": "9090",
+          "prometheus.io/scrape": "true"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "port": 8080,
+            "targetPort": 9090,
+            "nodePort": 30000
+          }
+        ],
+        "selector": {
+          "app": "prometheus-server"
+        },
+        "type": "NodePort"
       },
       "status": {
         "loadBalancer": {}
@@ -309,7 +3244,7 @@
         "ports": [
           {
             "name": "result-service",
-            "port": 5001,
+            "port": 8081,
             "targetPort": 80,
             "nodePort": 31001
           }
@@ -318,6 +3253,162 @@
           "app": "result"
         },
         "type": "NodePort"
+      },
+      "status": {
+        "loadBalancer": {}
+      }
+    },
+    {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "selenium-standalone-chrome"
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "web",
+            "port": 4444,
+            "targetPort": 4444,
+            "nodePort": 30444
+          },
+          {
+            "name": "vnc",
+            "port": 7900,
+            "targetPort": 7900,
+            "nodePort": 30790
+          }
+        ],
+        "selector": {
+          "app": "selenium-standalone-chrome"
+        },
+        "type": "NodePort"
+      },
+      "status": {
+        "loadBalancer": {}
+      }
+    },
+    {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "selenium-standalone-edge"
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "web",
+            "port": 4444,
+            "targetPort": 4444,
+            "nodePort": 30445
+          },
+          {
+            "name": "vnc",
+            "port": 7900,
+            "targetPort": 7900,
+            "nodePort": 30791
+          }
+        ],
+        "selector": {
+          "app": "selenium-standalone-edge"
+        },
+        "type": "NodePort"
+      },
+      "status": {
+        "loadBalancer": {}
+      }
+    },
+    {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "selenium-standalone-firefox"
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "web",
+            "port": 4444,
+            "targetPort": 4444,
+            "nodePort": 30446
+          },
+          {
+            "name": "vnc",
+            "port": 7900,
+            "targetPort": 7900,
+            "nodePort": 30792
+          }
+        ],
+        "selector": {
+          "app": "selenium-standalone-firefox"
+        },
+        "type": "NodePort"
+      },
+      "status": {
+        "loadBalancer": {}
+      }
+    },
+    {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "transactionhistory",
+        "labels": {
+          "application": "bank-of-anthos",
+          "environment": "development",
+          "team": "ledger",
+          "tier": "backend"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "http",
+            "port": 8080,
+            "targetPort": 8080
+          }
+        ],
+        "selector": {
+          "app": "transactionhistory",
+          "application": "bank-of-anthos",
+          "environment": "development",
+          "team": "ledger",
+          "tier": "backend"
+        },
+        "type": "ClusterIP"
+      },
+      "status": {
+        "loadBalancer": {}
+      }
+    },
+    {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "userservice",
+        "labels": {
+          "application": "bank-of-anthos",
+          "environment": "development",
+          "team": "accounts",
+          "tier": "backend"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "http",
+            "port": 8080,
+            "targetPort": 8080
+          }
+        ],
+        "selector": {
+          "app": "userservice",
+          "application": "bank-of-anthos",
+          "environment": "development",
+          "team": "accounts",
+          "tier": "backend"
+        },
+        "type": "ClusterIP"
       },
       "status": {
         "loadBalancer": {}
@@ -336,7 +3427,7 @@
         "ports": [
           {
             "name": "vote-service",
-            "port": 5000,
+            "port": 8080,
             "targetPort": 80,
             "nodePort": 31000
           }
@@ -351,22 +3442,331 @@
       }
     }
   ],
-  "configMaps": null,
-  "secrets": null,
+  "configMaps": [
+    {
+      "kind": "ConfigMap",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "accounts-db-config",
+        "labels": {
+          "app": "accounts-db",
+          "application": "bank-of-anthos",
+          "environment": "development",
+          "team": "accounts",
+          "tier": "db"
+        }
+      },
+      "data": {
+        "ACCOUNTS_DB_URI": "postgresql://accounts-admin:accounts-pwd@accounts-db:5432/accounts-db",
+        "POSTGRES_DB": "accounts-db",
+        "POSTGRES_PASSWORD": "accounts-pwd",
+        "POSTGRES_USER": "accounts-admin"
+      }
+    },
+    {
+      "kind": "ConfigMap",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "argo-rollouts-notification-configmap"
+      }
+    },
+    {
+      "kind": "ConfigMap",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "argocd-cm"
+      },
+      "data": {
+        "configManagementPlugins": "- name: argocd-vault-plugin\n  generate:\n    command: [\"argocd-vault-plugin\"]\n    args: [\"generate\", \"./\"]\n\n- name: argocd-vault-plugin-helm\n  generate:\n    command: [\"sh\", \"-c\"]\n    args: ['helm template \"$ARGOCD_APP_NAME\" -n \"$ARGOCD_APP_NAMESPACE\" . | argocd-vault-plugin generate -']\n\n# This lets you pass args to the Helm invocation as described here: https://argocd-vault-plugin.readthedocs.io/en/stable/usage/#with-helm\n# IMPORTANT: passing $helm_args effectively allows users to run arbitrary code in the Argo CD repo-server.\n# Only use this when the users are completely trusted. If possible, determine which Helm arguments are needed by \n# your users and explicitly pass only those arguments.\n- name: argocd-vault-plugin-helm-with-args\n  generate:\n    command: [\"sh\", \"-c\"]\n    args: ['helm template \"$ARGOCD_APP_NAME\" -n \"$ARGOCD_APP_NAMESPACE\" ${helm_args} . | argocd-vault-plugin generate -']\n\n# This lets you pass a values file as a string as described here:\n# https://argocd-vault-plugin.readthedocs.io/en/stable/usage/#with-helm\n- name: argocd-vault-plugin-helm-with-values\n  generate:\n    command: [\"bash\", \"-c\"]\n    args: ['helm template \"$ARGOCD_APP_NAME\" -n \"$ARGOCD_APP_NAMESPACE\" -f \u003c(echo \"$ARGOCD_ENV_HELM_VALUES\") . | argocd-vault-plugin generate -']\n\n- name: argocd-vault-plugin-kustomize\n  generate:\n    command: [\"sh\", \"-c\"]\n    args: [\"kustomize build . | argocd-vault-plugin generate -\"]"
+      }
+    },
+    {
+      "kind": "ConfigMap",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "cmp-plugin"
+      },
+      "data": {
+        "avp-kustomize.yaml": ""
+      }
+    },
+    {
+      "kind": "ConfigMap",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "prometheus-server-conf",
+        "namespace": "monitoring",
+        "labels": {
+          "name": "prometheus-server-conf"
+        }
+      },
+      "data": {
+        "prometheus.rules": "groups:\n- name: devopscube demo alert\n  rules:\n  - alert: High Pod Memory\n    expr: sum(container_memory_usage_bytes) \u003e 1\n    for: 1m\n    labels:\n      severity: slack\n    annotations:\n      summary: High Memory Usage",
+        "prometheus.yml": "global:\n  scrape_interval: 5s\n  evaluation_interval: 5s\nrule_files:\n  - /etc/prometheus/prometheus.rules\nalerting:\n  alertmanagers:\n  - scheme: http\n    static_configs:\n    - targets:\n      - \"alertmanager.monitoring.svc:9093\"\nscrape_configs:\n  - job_name: 'node-exporter'\n    kubernetes_sd_configs:\n      - role: endpoints\n    relabel_configs:\n    - source_labels: [__meta_kubernetes_endpoints_name]\n      regex: 'node-exporter'\n      action: keep\n  - job_name: 'kubernetes-apiservers'\n    kubernetes_sd_configs:\n    - role: endpoints\n    scheme: https\n    tls_config:\n      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt\n    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token\n    relabel_configs:\n    - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]\n      action: keep\n      regex: default;kubernetes;https\n  - job_name: 'kubernetes-nodes'\n    scheme: https\n    tls_config:\n      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt\n    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token\n    kubernetes_sd_configs:\n    - role: node\n    relabel_configs:\n    - action: labelmap\n      regex: __meta_kubernetes_node_label_(.+)\n    - target_label: __address__\n      replacement: kubernetes.default.svc:443\n    - source_labels: [__meta_kubernetes_node_name]\n      regex: (.+)\n      target_label: __metrics_path__\n      replacement: /api/v1/nodes/${1}/proxy/metrics\n  - job_name: 'kubernetes-pods'\n    kubernetes_sd_configs:\n    - role: pod\n    relabel_configs:\n    - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]\n      action: keep\n      regex: true\n    - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]\n      action: replace\n      target_label: __metrics_path__\n      regex: (.+)\n    - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]\n      action: replace\n      regex: ([^:]+)(?::\\d+)?;(\\d+)\n      replacement: $1:$2\n      target_label: __address__\n    - action: labelmap\n      regex: __meta_kubernetes_pod_label_(.+)\n    - source_labels: [__meta_kubernetes_namespace]\n      action: replace\n      target_label: kubernetes_namespace\n    - source_labels: [__meta_kubernetes_pod_name]\n      action: replace\n      target_label: kubernetes_pod_name\n  - job_name: 'kube-state-metrics'\n    static_configs:\n      - targets: ['kube-state-metrics.kube-system.svc.cluster.local:8080']\n  - job_name: 'kubernetes-cadvisor'\n    scheme: https\n    tls_config:\n      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt\n    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token\n    kubernetes_sd_configs:\n    - role: node\n    relabel_configs:\n    - action: labelmap\n      regex: __meta_kubernetes_node_label_(.+)\n    - target_label: __address__\n      replacement: kubernetes.default.svc:443\n    - source_labels: [__meta_kubernetes_node_name]\n      regex: (.+)\n      target_label: __metrics_path__\n      replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor\n  - job_name: 'kubernetes-service-endpoints'\n    kubernetes_sd_configs:\n    - role: endpoints\n    relabel_configs:\n    - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]\n      action: keep\n      regex: true\n    - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scheme]\n      action: replace\n      target_label: __scheme__\n      regex: (https?)\n    - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]\n      action: replace\n      target_label: __metrics_path__\n      regex: (.+)\n    - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]\n      action: replace\n      target_label: __address__\n      regex: ([^:]+)(?::\\d+)?;(\\d+)\n      replacement: $1:$2\n    - action: labelmap\n      regex: __meta_kubernetes_service_label_(.+)\n    - source_labels: [__meta_kubernetes_namespace]\n      action: replace\n      target_label: kubernetes_namespace\n    - source_labels: [__meta_kubernetes_service_name]\n      action: replace\n      target_label: kubernetes_name"
+      }
+    },
+    {
+      "kind": "ConfigMap",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "environment-config"
+      },
+      "data": {
+        "LOCAL_ROUTING_NUM": "883745000",
+        "PUB_KEY_PATH": "/tmp/.ssh/publickey"
+      }
+    },
+    {
+      "kind": "ConfigMap",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "service-api-config"
+      },
+      "data": {
+        "BALANCES_API_ADDR": "balancereader:8080",
+        "CONTACTS_API_ADDR": "contacts:8080",
+        "HISTORY_API_ADDR": "transactionhistory:8080",
+        "TRANSACTIONS_API_ADDR": "ledgerwriter:8080",
+        "USERSERVICE_API_ADDR": "userservice:8080"
+      }
+    },
+    {
+      "kind": "ConfigMap",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "demo-data-config"
+      },
+      "data": {
+        "DEMO_LOGIN_PASSWORD": "bankofanthos",
+        "DEMO_LOGIN_USERNAME": "testuser",
+        "USE_DEMO_DATA": "True"
+      }
+    },
+    {
+      "kind": "ConfigMap",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "ledger-db-config",
+        "labels": {
+          "app": "ledger-db",
+          "application": "bank-of-anthos",
+          "environment": "development",
+          "team": "ledger",
+          "tier": "db"
+        }
+      },
+      "data": {
+        "POSTGRES_DB": "postgresdb",
+        "POSTGRES_PASSWORD": "password",
+        "POSTGRES_USER": "admin",
+        "SPRING_DATASOURCE_PASSWORD": "password",
+        "SPRING_DATASOURCE_URL": "jdbc:postgresql://ledger-db:5432/postgresdb",
+        "SPRING_DATASOURCE_USERNAME": "admin"
+      }
+    },
+    {
+      "kind": "ConfigMap",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "argo-rollouts-notification-configmap"
+      },
+      "data": {
+        "template.analysis-run-failed": "message: Rollout {{.rollout.metadata.name}}'s analysis run failed.\nemail:\n  subject: Rollout {{.rollout.metadata.name}}'s analysis run failed.\nslack:\n  attachments: |\n      [{\n        \"title\": \"{{ .rollout.metadata.name}}\",\n        \"color\": \"#E01E5A\",\n        \"fields\": [\n        {\n          \"title\": \"Strategy\",\n          \"value\": \"{{if .rollout.spec.strategy.blueGreen}}BlueGreen{{end}}{{if .rollout.spec.strategy.canary}}Canary{{end}}\",\n          \"short\": true\n        }\n        {{range $index, $c := .rollout.spec.template.spec.containers}}\n          {{if not $index}},{{end}}\n          {{if $index}},{{end}}\n          {\n            \"title\": \"{{$c.name}}\",\n            \"value\": \"{{$c.image}}\",\n            \"short\": true\n          }\n        {{end}}\n        ]\n      }]",
+        "trigger.on-analysis-run-failed": "- send: [analysis-run-failed]\n"
+      }
+    }
+  ],
+  "secrets": [
+    {
+      "kind": "Secret",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "cloud-config",
+        "namespace": "kube-system"
+      },
+      "data": {
+        "cloud.conf": "W0dsb2JhbF0KdXNlcm5hbWUgPSBhZG1pbgpwYXNzd29yZCA9IG5vbW9yZXNlY3JldApkb21haW4tbmFtZSA9IGRlZmF1bHQKYXV0aC11cmwgPSBodHRwOi8vMTkyLjE2OC4yMDAuOS9pZGVudGl0eQp0ZW5hbnQtaWQgPSBjYzM0YjExZmY5NWQ0MjMwOTA4MWQwYmQ0NmMwZmY4OQpyZWdpb24gPSBSZWdpb25PbmUK"
+      }
+    },
+    {
+      "kind": "Secret",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "prometheus-secret",
+        "namespace": "monitoring"
+      },
+      "data": {
+        "tls.crt": "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUZpVENDQkhHZ0F3SUJBZ0lCQVRBTkJna3Foa2lHOXcwQkFRc0ZBRENCd0RFak1DRUdBMVVFQXhNYWFXNTAKWlhKdFpXUnBZWFJsTG5Ob1lXdGxjakkwTWk1c1lXSXhDekFKQmdOVkJBWVRBbFZUTVJFd0R3WURWUVFJRXdoVwphWEpuYVc1cFlURVFNQTRHQTFVRUJ4TUhRbkpwYzNSdmR6RXNNQ29HQTFVRUNoTWpVMGhCUzBWU01qUXlJRXhoCllpQkRaWEowYVdacFkyRjBaU0JCZFhSb2IzSnBkSGt4T1RBM0JnTlZCQXNUTUZOSVFVdEZVakkwTWlCTVlXSWcKU1c1MFpYSnRaV1JwWVhSbElFTmxjblJwWm1sallYUmxJRUYxZEdodmNtbDBlVEFlRncweE9URXdNVGN4TmpFMgpNekZhRncweU1URXdNVFl4TmpFMk16RmFNSUdBTVIwd0d3WURWUVFERkJRcUxtRndjSE11YzJoaGEyVnlNalF5CkxteGhZakVMTUFrR0ExVUVCaE1DVlZNeEVUQVBCZ05WQkFnVENGWnBjbWRwYm1saE1SQXdEZ1lEVlFRSEV3ZEMKY21semRHOTNNUll3RkFZRFZRUUtFdzFUU0VGTFJWSXlORElnVEdGaU1SVXdFd1lEVlFRTEV3eE1ZV0lnVjJWaQpjMmwwWlhNd2dnRWlNQTBHQ1NxR1NJYjNEUUVCQVFVQUE0SUJEd0F3Z2dFS0FvSUJBUURsRm16QVd0U09JcXZNCkpCV3Vuc0VIUmxraXozUmpSK0p1NTV0K0hCUG95YnZwVkJJeXMxZ3prby9INlkxa2Zxa1JCUzZZYVFHM2lYRFcKaDgzNlNWc3pNVUNVS3BtNXlZQXJRNzB4YlpPTXRJcjc1VEcrejFaRGJaeFUzbnh6RXdHdDN3U3c5OVJ0bjhWbgo5dEpTVXI0MHBHUytNemMzcnZOUFZRMjJoYTlhQTdGL2NVcGxtZUpkUnZEVnJ3Q012UklEcndXVEZjZkU3bUtxCjFSUkRxVDhETnlydlJmeUlubytmSkUxTmRuVEVMY0dTYVZlajhZVVFONHY0WFRnLzJncmxIN1pFT1VXNy9oYm8KUXh6NVllejVSam1wOWVPVUpvdVdmWk5FNEJBbGRZeVYxd2NPRXhRTmswck5BOU45ZXBjNWtUVVZQR3pOTWRucgovVXQxOWMweEFnTUJBQUdqZ2dIS01JSUJ4akFKQmdOVkhSTUVBakFBTUJFR0NXQ0dTQUdHK0VJQkFRUUVBd0lHClFEQUxCZ05WSFE4RUJBTUNCYUF3TXdZSllJWklBWWI0UWdFTkJDWVdKRTl3Wlc1VFUwd2dSMlZ1WlhKaGRHVmsKSUZObGNuWmxjaUJEWlhKMGFXWnBZMkYwWlRBZEJnTlZIUTRFRmdRVWRhYy94MTR6dXl3RVZPSi9vTjdQeU82bApDZ2N3Z2RzR0ExVWRJd1NCMHpDQjBJQVVzZFM1WWxuWEpWTk5mRVpkTEQvL2RyNE5mV3FoZ2JTa2diRXdnYTR4CkdUQVhCZ05WQkFNVEVHTmhMbk5vWVd0bGNqSTBNaTVzWVdJeEN6QUpCZ05WQkFZVEFsVlRNUkV3RHdZRFZRUUkKRXdoV2FYSm5hVzVwWVRFUU1BNEdBMVVFQnhNSFFuSnBjM1J2ZHpFc01Db0dBMVVFQ2hNalUwaEJTMFZTTWpReQpJRXhoWWlCRFpYSjBhV1pwWTJGMFpTQkJkWFJvYjNKcGRIa3hNVEF2QmdOVkJBc1RLRk5JUVV0RlVqSTBNaUJNCllXSWdVbTl2ZENCRFpYSjBhV1pwWTJGMFpTQkJkWFJvYjNKcGRIbUNBUUV3SFFZRFZSMGxCQll3RkFZSUt3WUIKQlFVSEF3RUdDQ3NHQVFVRkNBSUNNRWdHQTFVZEVRUkJNRCtDRFhOb1lXdGxjakkwTWk1c1lXS0NFbUZ3Y0hNdQpjMmhoYTJWeU1qUXlMbXhoWW9JVUtpNWhjSEJ6TG5Ob1lXdGxjakkwTWk1c1lXS0hCTUNvQ3hBd0RRWUpLb1pJCmh2Y05BUUVMQlFBRGdnRUJBRzA3ZHFNdFZYdVQrckduQlN4SkVTNjNSa2pHaWd0c3ZtNTk4NSsrbjZjRW5kSDIKb2hjaGdmRUo5V0UxYUFWSDR4QlJSdVRIUFVJOFcvd3N1OFBxQ1o4NHpRQ2U2elAyeThEcmEwbjFzK2lIeHFwRAorS3BwZS91NkNLVTFEL0VWRU9MakpZd3pRYlFLSUlPL2Y1Q0JVbUpGWjBuZ1VIUEtvUDNyTXordTlBOWFvRkVrCnF3dDBadHFHcWpjMkh3Q09UOTlOVmFsZ29ISXljOElxQXJXdjNSWklraUlyaW9kSUdDMS94MVQ2dHhKcEUyRisKQzZ0Tzk0U0FVSUJwc2VORjNFbGNLNUsyTW44YVAzR3NnNFRHeElPN2Q1eUIvb3YwNGhOV2Q1S2QwWGorL1BvQgpLOU43cFQ1SVU2citLekNoeGlSdmRvZlAzV0VYN1ZkNEtLWG94K0U9Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K",
+        "tls.key": "LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUV2d0lCQURBTkJna3Foa2lHOXcwQkFRRUZBQVNDQktrd2dnU2xBZ0VBQW9JQkFRRGxGbXpBV3RTT0lxdk0KSkJXdW5zRUhSbGtpejNSalIrSnU1NXQrSEJQb3lidnBWQkl5czFnemtvL0g2WTFrZnFrUkJTNllhUUczaVhEVwpoODM2U1Zzek1VQ1VLcG01eVlBclE3MHhiWk9NdElyNzVURyt6MVpEYlp4VTNueHpFd0d0M3dTdzk5UnRuOFZuCjl0SlNVcjQwcEdTK016YzNydk5QVlEyMmhhOWFBN0YvY1VwbG1lSmRSdkRWcndDTXZSSURyd1dURmNmRTdtS3EKMVJSRHFUOEROeXJ2UmZ5SW5vK2ZKRTFOZG5URUxjR1NhVmVqOFlVUU40djRYVGcvMmdybEg3WkVPVVc3L2hibwpReHo1WWV6NVJqbXA5ZU9VSm91V2ZaTkU0QkFsZFl5VjF3Y09FeFFOazByTkE5TjllcGM1a1RVVlBHek5NZG5yCi9VdDE5YzB4QWdNQkFBRUNnZ0VCQU5zOHRjRDBiQnpHZzRFdk8yek0wMUJoKzZYN3daZk4wSjV3bW5kNjZYYkwKc1VEZ1N6WW9PbzNJZ2o5QWZTY2lyQ3YwdUozMVNFWmNpeGRVQ2tTdjlVNnRvTzdyUWdqeUZPM1N1dm5Wc3ZKaQpTZXc5Y0hqNk5jVDczak8rWkgxQVFFZ2tlWG5mQTNZU0JEcTFsSnhpUVZOaHpHUFY0Yzh4Wi9xUkhEbUVBTWR6CmwyaTB6dHJtcWRqSng4aTQxOXpGL1pVektoa2JtcVZVb3JjZ1lNdEt5QVloSENMYms2RFZtQ1FhbDlndEUrNjUKTmFTOEwxUW9yVWNVS0FoSTNKT2Q2TTRwbWRPaExITjZpZ0VwWFdVWGxBZjRITUZicHd5M1oxejNqZzVqTE9ragp6SWNDSVRaai9CYVZvSVc4QzJUb0pieUJKWkN6UDVjUVJTdkJOOGV4aUFFQ2dZRUEvV0Nxb2xVUWtOQkQrSnlPCklXOUJIRVlPS3oxRFZxNWxHRFhoNFMyTStpOU1pck5nUlcvL0NFRGhRUVVMZmtBTDgxMERPQmxsMXRRRUpGK3cKb1V6dWt6U1lkK1hTSnhicTM5YTF1ZGJldTNZU1ljeC8wTEEweGFQOW1sN1l1NXUraUZ4NGhwcnYyL2UrVklZQQpzTWV4WkZSODA3Q3M5YXN5MkdFT1l2aEdKb0VDZ1lFQTUzVm1weFlQbDFOYTVTMElJbEpuYm40dTl0RHpwYm5TCnpsMjBVQ3Q0d0N4STR6YjY1S1o4V1VaYlFzVTVaZ0VqTmxJWURXUisrd3kwVXh2SmNxUG5nS0xuOEdoSzhvOVEKeVJuR2dSYXAxWmNuUEdsbGdCeHQzM0s5TDNWMmJzMXBPcGJKMGlpOVdySWM4MU1wUVFpQjZ1RDRSZ216M0ZWSQpnUk5Ec2ZHS0xyRUNnWUVBbWY5ZXRqc3RUbGJHZVJ2dDVyUlB4bmR0dFNvTysyZ1RXWnVtSmM0aG1RMldYOWFWCjlKNFZTMWJqa1RrWHV5d0NGMis0dlNmeWxaZFd6U1M3bmMyOFV3dnNmekxYZjVxV05tV3hIYnBTdFcwVnp3c1QKeENyVWFDczd2ODlWdXZEMTVMc1BKZ0NWT0FSalVjd0FMM0d2aDJNeVd4ZE9pQ0g5VFRYd0lJYjFYQUVDZ1lBMwp4ZUptZ0xwaERJVHFsRjlSWmVubWhpRnErQTY5OEhrTG9TakI2TGZBRnV1NVZKWkFZcDIwSlcvNE51NE4xbGhWCnpwSmRKOG94Vkc1ZldHTENiUnhyc3RXUTZKQ213a0lGTTJEUjJsUXlVNm53dExUd21la2YzdFlYaVlad1RLNysKbnpjaW5RNkR2RWVkbW54bVgxWnU4cWJndVpYTmtmOVdtdjNFOHg4SkFRS0JnUUNNeDFWNHJIcUpwVXJMdkRVVQo4RzhXVGNrT2VFM2o2anhlcHMwcnExdEd1cE9XWW5saFlNYyt5VkMzMDZUc2dXUmJ5R1Y4YWNaRkF4WS9Ub2N5CmxpcXlUS1NGNUloYXhZQVpRTzVkOU1oTmN0bTRReDNaOUtTekZ5ZG01QlZVL0grMFFmUnRwM29TeFVneXRZNXkKV3ZDTFZ5bmNGZlZpL0VkaTdaZHM2aW82QVE9PQotLS0tLUVORCBQUklWQVRFIEtFWS0tLS0tCg=="
+      }
+    }
+  ],
   "namespaces": null,
-  "serviceAccounts": null,
+  "serviceAccounts": [
+    {
+      "kind": "ServiceAccount",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "bank-of-anthos",
+        "annotations": {
+          "iam.gke.io/gcp-service-account": "gke-workload-development@bank-of-anthos-ci.iam.gserviceaccount.com"
+        }
+      }
+    },
+    {
+      "kind": "ServiceAccount",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "kstone-controller",
+        "namespace": "kstone"
+      }
+    }
+  ],
   "persistentVolumes": null,
   "persistentVolumeClaims": null,
   "resourceQuotas": null,
   "limitRanges": null,
   "jobs": null,
   "cronJobs": null,
-  "ingresses": null,
+  "ingresses": [
+    {
+      "kind": "Ingress",
+      "apiVersion": "networking.k8s.io/v1",
+      "metadata": {
+        "name": "prometheus-ui",
+        "namespace": "monitoring",
+        "annotations": {
+          "kubernetes.io/ingress.class": "nginx"
+        }
+      },
+      "spec": {
+        "tls": [
+          {
+            "hosts": [
+              "prometheus.apps.shaker242.lab"
+            ],
+            "secretName": "prometheus-secret"
+          }
+        ],
+        "rules": [
+          {
+            "host": "prometheus.example.com",
+            "http": {
+              "paths": [
+                {
+                  "path": "/",
+                  "pathType": "Prefix",
+                  "backend": {
+                    "service": {
+                      "name": "prometheus-service",
+                      "port": {
+                        "number": 8080
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "status": {
+        "loadBalancer": {}
+      }
+    }
+  ],
   "networkPolicies": null,
   "roles": null,
   "roleBindings": null,
-  "clusterRoles": null,
-  "clusterRoleBindings": null,
+  "clusterRoles": [
+    {
+      "kind": "ClusterRole",
+      "apiVersion": "rbac.authorization.k8s.io/v1",
+      "metadata": {
+        "name": "prometheus"
+      },
+      "rules": [
+        {
+          "verbs": [
+            "get",
+            "list",
+            "watch"
+          ],
+          "apiGroups": [
+            ""
+          ],
+          "resources": [
+            "nodes",
+            "nodes/proxy",
+            "services",
+            "endpoints",
+            "pods"
+          ]
+        },
+        {
+          "verbs": [
+            "get",
+            "list",
+            "watch"
+          ],
+          "apiGroups": [
+            "extensions"
+          ],
+          "resources": [
+            "ingresses"
+          ]
+        },
+        {
+          "verbs": [
+            "get"
+          ],
+          "nonResourceURLs": [
+            "/metrics"
+          ]
+        }
+      ]
+    }
+  ],
+  "clusterRoleBindings": [
+    {
+      "kind": "ClusterRoleBinding",
+      "apiVersion": "rbac.authorization.k8s.io/v1",
+      "metadata": {
+        "name": "prometheus"
+      },
+      "subjects": [
+        {
+          "kind": "ServiceAccount",
+          "name": "default",
+          "namespace": "monitoring"
+        }
+      ],
+      "roleRef": {
+        "apiGroup": "rbac.authorization.k8s.io",
+        "kind": "ClusterRole",
+        "name": "prometheus"
+      }
+    },
+    {
+      "kind": "ClusterRoleBinding",
+      "apiVersion": "rbac.authorization.k8s.io/v1",
+      "metadata": {
+        "name": "kstone-controller"
+      },
+      "subjects": [
+        {
+          "kind": "ServiceAccount",
+          "name": "kstone-controller",
+          "namespace": "kstone"
+        }
+      ],
+      "roleRef": {
+        "apiGroup": "rbac.authorization.k8s.io",
+        "kind": "ClusterRole",
+        "name": "cluster-admin"
+      }
+    }
+  ],
   "storageClasses": null,
   "customResourceDefinitions": null
 }
