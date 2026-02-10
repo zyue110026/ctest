@@ -28,6 +28,8 @@ var skipDirs = map[string]bool{
 var skipFiles = map[string]bool{
 	"framework.go": true,
 	"utils.go":     true,
+	"doc.go":       true,
+	"util.go":      true,
 }
 
 func CollectGoFilesFromRepo(k8sRoot, path string) ([]string, error) {

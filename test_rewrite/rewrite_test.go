@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// TestRewriteWithLLM rewrites Go test files using Ollama (DeepSeek-Coder)
+// TestRewriteWithLLM rewrites Go test files using Ollama
 func TestRewriteWithLLM(t *testing.T) {
 	start := time.Now()
 
@@ -30,7 +30,7 @@ func TestRewriteWithLLM(t *testing.T) {
 
 	target := os.Getenv("REWRITE_TARGET")
 	if target == "" {
-		target = "pkg/" // plugin, and staging
+		target = "staging/src/k8s.io/kubectl" //
 	}
 
 	var absTarget string
@@ -75,6 +75,7 @@ func TestRewriteWithLLM(t *testing.T) {
 	rewritten := 0
 	skipped := 0
 	failed := 0
+	alreadyRewritten := 0
 
 	//---------------------------------------
 	// Rewrite loop
@@ -95,7 +96,7 @@ func TestRewriteWithLLM(t *testing.T) {
 		// Skip if already rewritten and not overwriting
 		if exists && !overwrite {
 			t.Logf("⏭️  Skipping already rewritten file: %s", file)
-			skipped++
+			alreadyRewritten++
 			continue
 		}
 
@@ -110,7 +111,7 @@ func TestRewriteWithLLM(t *testing.T) {
 
 		prompt := BuildPrompt(file, string(contentBytes))
 		rewrittenContent, err := CallOllama(prompt)
-		time.Sleep(30)
+		// time.Sleep(30)
 		if err != nil {
 			t.Errorf("rewrite failed for %s: %v", file, err)
 			failed++
@@ -169,11 +170,12 @@ func TestRewriteWithLLM(t *testing.T) {
 
 	t.Log("===================================")
 	t.Logf("Rewrite Summary")
-	t.Logf("Targeted files : %d", total)
-	t.Logf("Rewritten      : %d", rewritten)
-	t.Logf("Skipped        : %d", skipped)
-	t.Logf("Failed         : %d", failed)
-	t.Logf("Elapsed time   : %s", time.Since(start))
+	t.Logf("Targeted files    : %d", total)
+	t.Logf("Rewritten         : %d", rewritten)
+	t.Logf("Already Rewritten : %d", alreadyRewritten)
+	t.Logf("Skipped           : %d", skipped)
+	t.Logf("Failed            : %d", failed)
+	t.Logf("Elapsed time      : %s", time.Since(start))
 	t.Log("===================================")
 }
 

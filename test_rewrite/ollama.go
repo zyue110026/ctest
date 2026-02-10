@@ -69,6 +69,9 @@ func CallOllama(prompt string) (string, error) {
 		Timeout: 5 * time.Minute,
 	}
 
+	// 🚦 Rate-limit Ollama calls
+	defer time.Sleep(ollamaSleepDuration())
+
 	resp, err := client.Post(url, "application/json", bytes.NewBuffer(bodyBytes))
 
 	// resp, err := http.Post(url, "application/json", bytes.NewReader(bodyBytes))
@@ -107,4 +110,16 @@ func CallOllama(prompt string) (string, error) {
 	}
 
 	return outTrim, nil
+}
+
+func ollamaSleepDuration() time.Duration {
+	// default cooldown
+	d := 10 * time.Second
+
+	if v := os.Getenv("OLLAMA_SLEEP"); v != "" {
+		if parsed, err := time.ParseDuration(v); err == nil {
+			d = parsed
+		}
+	}
+	return d
 }

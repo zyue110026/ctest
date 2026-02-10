@@ -43,11 +43,16 @@ help:
 	@echo ""
 	@echo "  make test-integration"
 	@echo "    Run Kubernetes integration tests with etcd setup."
+	@echo "    Logs output to test/ctest/logs/ctest_integration_logs_YYYYMMDDTHHMMSS.html."
 	@echo ""
 	@echo "  make ctest-e2e"
 	@echo "    Run end-to-end CTest tests using kubetest2 + kind."
 	@echo "    Automatically checks and installs Go, kubetest2, and kind if missing."
 	@echo "    Uses ginkgo focus file: ctest and built binaries."
+	@echo ""
+	@echo "  make ctest-unit"
+	@echo "    Run unit tests with names prefixed by TestCtest, excluding test/ folder."
+	@echo "    Logs output to test/ctest/logs/ctest_unit_logs_YYYYMMDDTHHMMSS.html."
 
 # ---------------------------------------
 # Generate Fixtures
@@ -143,3 +148,16 @@ ctest-e2e:
 	kubetest2 kind --build --up --down --test ginkgo -v 4 -- \
 		--test-args="--ginkgo.focus-file=ctest" \
 		--use-built-binaries
+
+# ---------------------------------------
+# Run Unit Tests (prefix TestCtest, exclude test/ folder)
+# ---------------------------------------
+.PHONY: ctest-unit
+ctest-unit:
+	@mkdir -p $(K8S_ROOT)/test/ctest/logs
+	@LOG_FILE=$(K8S_ROOT)/test/ctest/logs/ctest_unit_logs_$(shell date +%Y%m%dT%H%M%S).html; \
+	echo "📂 Entering Kubernetes root: $(K8S_ROOT)"; \
+	cd $(K8S_ROOT) && \
+	echo "🏃 Running unit tests (prefix TestCtest, excluding test/)..."; \
+	PKGS=$$(go list ./... | grep -v '^k8s.io/kubernetes/test/') && \
+	go test -timeout 24h $$PKGS -run '^TestCtest' -v 2>&1 | tee $$LOG_FILE
