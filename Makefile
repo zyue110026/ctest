@@ -150,14 +150,43 @@ ctest-e2e:
 		--use-built-binaries
 
 # ---------------------------------------
-# Run Unit Tests (prefix TestCtest, exclude test/ folder)
+# Run Unit Tests (prefix TestCtest, exclude test/ and staging/)
+# with execution time + coverage
 # ---------------------------------------
 .PHONY: ctest-unit
 ctest-unit:
 	@mkdir -p $(K8S_ROOT)/test/ctest/logs
 	@LOG_FILE=$(K8S_ROOT)/test/ctest/logs/ctest_unit_logs_$(shell date +%Y%m%dT%H%M%S).html; \
+	COVER_FILE=$(K8S_ROOT)/test/ctest/logs/ctest_unit_coverage_$(shell date +%Y%m%dT%H%M%S).out; \
 	echo "📂 Entering Kubernetes root: $(K8S_ROOT)"; \
 	cd $(K8S_ROOT) && \
-	echo "🏃 Running unit tests (prefix TestCtest, excluding test/)..."; \
-	PKGS=$$(go list ./... | grep -v '^k8s.io/kubernetes/test/') && \
-	go test -timeout 24h $$PKGS -run '^TestCtest' -v 2>&1 | tee $$LOG_FILE
+	echo "🏃 Running unit tests (TestCtest*, excluding test/ and staging/)"; \
+	START_TIME=$$(date +%s); \
+	PKGS=$$(go list ./... \
+		| grep -v '^k8s.io/kubernetes/test/' \
+		| grep -v '^k8s.io/kubernetes/staging/'); \
+	set -o pipefail; \
+	go test \
+		-v \
+		-timeout 24h \
+		-covermode=atomic \
+		-coverpkg=./... \
+		-coverprofile=$$COVER_FILE \
+		$$PKGS \
+		-run '^TestCtest' \
+		2>&1 | tee $$LOG_HTML; \
+	STATUS=$$?; \
+	END_TIME=$$(date +%s); \
+	echo ""; \
+	echo "📊 Test summary:"; \
+	TOTAL=$$(grep -c '^=== RUN' $$LOG_HTML); \
+	PASSED=$$(grep -c '^--- PASS:' $$LOG_HTML); \
+	FAILED=$$(grep -c '^--- FAIL:' $$LOG_HTML); \
+	echo "🧪 Total tests : $$TOTAL"; \
+	echo "✅ Passed     : $$PASSED"; \
+	echo "❌ Failed     : $$FAILED"; \
+	echo "⏱ Time        : $$((END_TIME - START_TIME)) seconds"; \
+	echo "🧪 Coverage   : $$COVER_FILE"; \
+	echo "📄 HTML log   : $$LOG_HTML"; \
+	exit $$STATUS
+
