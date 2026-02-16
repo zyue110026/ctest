@@ -30,7 +30,7 @@ func TestRewriteWithLLM(t *testing.T) {
 
 	target := os.Getenv("REWRITE_TARGET")
 	if target == "" {
-		target = "staging/src/k8s.io/kubectl" //
+		target = "staging/src/k8s.io/sample-apiserver" //
 	}
 
 	var absTarget string

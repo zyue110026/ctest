@@ -150,7 +150,7 @@ func walkOutsideTest(k8sRoot, root string) ([]string, error) {
 				)
 				return filepath.SkipDir
 			}
-			if skipDirs[d.Name()] {
+			if skipDirs[d.Name()] || strings.HasPrefix(d.Name(), "sample-") {
 				return filepath.SkipDir
 			}
 			return nil
