@@ -150,7 +150,7 @@ ctest-e2e:
 		--use-built-binaries
 
 # ---------------------------------------
-# Run Unit Tests (prefix TestCtest, exclude test/ and staging/)
+# Run Unit Tests (prefix TestCtest, exclude test/)
 # with execution time + coverage
 # ---------------------------------------
 .PHONY: ctest-unit
@@ -160,11 +160,10 @@ ctest-unit:
 	COVER_FILE=$(K8S_ROOT)/test/ctest/logs/ctest_unit_coverage_$(shell date +%Y%m%dT%H%M%S).out; \
 	echo "📂 Entering Kubernetes root: $(K8S_ROOT)"; \
 	cd $(K8S_ROOT) && \
-	echo "🏃 Running unit tests (TestCtest*, excluding test/ and staging/)"; \
+	echo "🏃 Running unit tests (TestCtest*, excluding test/)"; \
 	START_TIME=$$(date +%s); \
 	PKGS=$$(go list ./... \
-		| grep -v '^k8s.io/kubernetes/test/' \
-		| grep -v '^k8s.io/kubernetes/staging/'); \
+		| grep -v '^k8s.io/kubernetes/test/'); \
 	set -o pipefail; \
 	go test \
 		-v \
@@ -174,19 +173,25 @@ ctest-unit:
 		-coverprofile=$$COVER_FILE \
 		$$PKGS \
 		-run '^TestCtest' \
-		2>&1 | tee $$LOG_HTML; \
+		2>&1 | tee $$LOG_FILE; \
 	STATUS=$$?; \
 	END_TIME=$$(date +%s); \
-	echo ""; \
-	echo "📊 Test summary:"; \
-	TOTAL=$$(grep -c '^=== RUN' $$LOG_HTML); \
-	PASSED=$$(grep -c '^--- PASS:' $$LOG_HTML); \
-	FAILED=$$(grep -c '^--- FAIL:' $$LOG_HTML); \
-	echo "🧪 Total tests : $$TOTAL"; \
-	echo "✅ Passed     : $$PASSED"; \
-	echo "❌ Failed     : $$FAILED"; \
-	echo "⏱ Time        : $$((END_TIME - START_TIME)) seconds"; \
-	echo "🧪 Coverage   : $$COVER_FILE"; \
-	echo "📄 HTML log   : $$LOG_HTML"; \
+	wait; \
+	echo "" | tee -a $$LOG_FILE; \
+	echo "📊 Test summary:" | tee -a $$LOG_FILE; \
+	TOTAL=$$(grep -c '^=== RUN' "$$LOG_FILE" || true); \
+	PASSED=$$(grep -c -- '--- PASS:' "$$LOG_FILE" || true); \
+	FAILED=$$(grep -c -- '--- FAIL:' "$$LOG_FILE" || true); \
+	SKIPPED=$$((TOTAL - PASSED - FAILED)); \
+	DURATION=$$((END_TIME - START_TIME)); \
+	{ \
+		echo "🧪 Total tests : $$TOTAL"; \
+		echo "✅ Passed      : $$PASSED"; \
+		echo "❌ Failed      : $$FAILED"; \
+		echo "⚠ Skipped      : $$SKIPPED"; \
+		echo "⏱ Time         : $$DURATION seconds"; \
+		echo "🧪 Coverage    : $$COVER_FILE"; \
+		echo "📄 HTML log    : $$LOG_FILE"; \
+	} | tee -a "$$LOG_FILE"; \
 	exit $$STATUS
 
